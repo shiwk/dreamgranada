@@ -1,5 +1,6 @@
 #include <iostream>
 #include "config.hpp"
+#include <glog/logging.h>
 
 int main(int argc, char* argv[])
 {
@@ -11,5 +12,5 @@ int main(int argc, char* argv[])
         }
     }
     mb::MBConfig mbConfig(configPath);
-    std::cout << "hello, box" << std::endl;
+    DLOG(INFO) << "hello, box";
 }
