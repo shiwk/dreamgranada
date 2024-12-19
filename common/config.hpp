@@ -3,9 +3,9 @@
 
 #include <string>
 
-namespace mb
+namespace granada
 {
-    const std::string DEFAULT_CONFIG_PATH = "/etc/mb/config";
+    const std::string DEFAULT_CONFIG_PATH = "/etc/granada/config";
 
     class MBConfig
     {
@@ -26,6 +26,6 @@ namespace mb
         }
     };
 
-} // namespace mb
+} // namespace granada
 
 #endif
