@@ -1,29 +1,42 @@
 #include <iostream>
 #include "config.hpp"
 #include <glog/logging.h>
-#include "worker.hpp"
-#include "ioevents.hpp"
-#include "events.hpp"
+#include "ioloop.hpp"
+#include "bus.hpp"
+#include "postman.hpp"
+#include "logger.hpp"
+#include "fetcher.hpp"
 
-int main(int argc, char* argv[])
+
+using namespace granada;
+int main(int argc, char *argv[])
 {
-    std::string configPath = "";
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "-c" || std::string(argv[i]) == "--config") {
-            configPath = true;
-            break;
-        }
-    }
+    google::InitGoogleLogging(argv[0]);
+    google::SetStderrLogging(google::INFO);
 
-    granada::ioloop::ioevents ioevents(std::make_shared<granada::Worker>());
+    // std::string configPath = "";
+    // for (int i = 1; i < argc; ++i) {
+    //     if (std::string(argv[i]) == "-c" || std::string(argv[i]) == "--config") {
+    //         configPath = true;
+    //         break;
+    //     }
+    // }
+    // granada::MBConfig mbConfig(configPath);
+    // LOG(FATAL) << "This is a FATAL log.";
 
-    using namespace granada::ioloop;
+    auto eventBus = std::make_shared<events::Bus>();
+
+    using namespace granada::events;
     using namespace granada;
-    std::shared_ptr<granada::ioloop::Event> eventPtr ((Event*)new CommonEvent());
-    ioevents.newEvent(eventPtr);
-    ioevents.run();
-    
+    std::future<void> f = std::async(std::launch::async, [&]
+                                     { eventBus->start(); });
+    auto ioloop = std::make_shared<IOLoop>(eventBus);
+    auto fetcher = std::make_shared<Fetcher>(eventBus);
+    ioloop->subscribe(fetcher);
+    granada::events::EventPtr eventPtr ((Event*)new CommonEvent());
+    eventBus->postEvent(eventPtr);
 
-    granada::MBConfig mbConfig(configPath);
-    DLOG(INFO) << "hello, box";
+    f.wait();
+
+    LOG_MSG(INFO, "hello, granada");
 }

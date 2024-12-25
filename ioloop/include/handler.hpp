@@ -6,7 +6,7 @@
 
 namespace granada
 {
-    namespace ioloop
+    namespace events
     {
         class EventHandler
         {
