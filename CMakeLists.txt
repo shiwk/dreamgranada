@@ -17,5 +17,5 @@ add_executable(dreamgranada
                 ${HEADERS} 
                 ${SOURCES})
 
-
-target_link_libraries(dreamgranada PRIVATE granada_ioloop granada_client glog::glog fmt::fmt)
+find_package(Threads REQUIRED)
+target_link_libraries(dreamgranada PRIVATE granada_ioloop granada_client glog::glog fmt::fmt Threads::Threads)
