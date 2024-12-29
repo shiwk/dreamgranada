@@ -38,5 +38,5 @@ int main(int argc, char *argv[])
 
     f.wait();
 
-    LOG_MSG(INFO, "hello, granada");
+    LOG_INFO( "hello, granada");
 }

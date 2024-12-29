@@ -14,7 +14,7 @@ namespace granada
 
             // 重新安排定时器的回调
             timer.async_wait([&](const system::error_code& error) {
-                LOG_MSG(INFO, "Timer expired");
+                LOG_INFO( "Timer expired");
                 if (!error) {
                     onTimeout(timer, io);
                 }
@@ -29,7 +29,7 @@ namespace granada
 
         Bus::~Bus()
         {
-            LOG_MSG(INFO, "Bus destructor");
+            LOG_INFO( "Bus destructor");
             io_context_->stop();
             io_thread_.wait();
         }
@@ -41,7 +41,7 @@ namespace granada
 
         void Bus::start()
         {
-            LOG_MSG(INFO, "Bus starting..");
+            LOG_INFO( "Bus starting..");
             // auto timer =  std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(1));
             asio::steady_timer timer(*io_context_, std::chrono::seconds(1));
             onTimeout(timer, io_context_);
@@ -67,18 +67,24 @@ namespace granada
             return *io_context_;
         }
 
-        // void Bus::delayPost(EventPtr event, std::chrono::seconds delay)
+        Bus::io_contextPtr& Bus::getIOContextPtr()
+        {
+            return io_context_;
+        }
+
+
+        // void Bus::delayPost(EventPtr even t, std::chrono::seconds delay)
         // {
         //     boost::asio::steady_timer timer(*io_context_, delay);
         //     timer.async_wait([this, &event](const boost::system::error_code &ec)
         //                      {
         //                          if (ec)
         //                          {
-        //                              LOG_FMT(ERROR, "Error: {}", ec.message());
+        //                              LOG_ERROR_FMT("Error: {}", ec.message());
         //                          }
         //                          else
         //                          {
-        //                              LOG_MSG(INFO, "Timer expired");
+        //                              LOG_INFO( "Timer expired");
         //                              handlerCallback_(event);
         //                          }
         //                      });

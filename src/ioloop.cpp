@@ -13,12 +13,12 @@ namespace granada
 
     IOLoop::~IOLoop()
     {
-        LOG_MSG(INFO, "IOLoop destroyed");
+        LOG_INFO( "IOLoop destroyed");
     }
 
     void IOLoop::handle(events::EventPtr event)
     {
-        LOG_FMT(INFO, "Received event {} {}", event->name(), event->type());
+        LOG_INFO_FMT("Received event {} {}", event->name(), event->type());
         for (auto role : roles_)
         {
             role->OnEvent(event);
@@ -26,7 +26,7 @@ namespace granada
     }
     void IOLoop::subscribe(roles::GranadaRolePtr role)
     {
-        LOG_MSG(INFO, "Subscribing role");
+        LOG_INFO( "Subscribing role");
         roles_.push_back(role);
     }
 }

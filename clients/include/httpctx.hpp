@@ -19,15 +19,15 @@ namespace ssl = boost::asio::ssl;
 using namespace boost::system;
 
 using asio::ip::tcp;
-MAKE_SHARED_PTR(io_context);
 
 namespace granada
 {
     namespace http
     {
+        MAKE_SHARED_PTR(io_context);
         enum class Method
         {
-            GET,
+            GET = 0,
             POST,
             PUT,
             DELETE,
@@ -41,13 +41,13 @@ namespace granada
             std::string path;
             std::string host;
             std::string connection;
-            size_t contentLength = 0;
+            // size_t contentLength = 0;
             std::string user_agent;
             std::string body;
             std::unordered_map<std::string, std::string> headers;
             std::unordered_map<std::string, std::string> queries;
 
-            Request(const Method &method, const std::string &path, const std::string &host, const std::string &user_agent = "granada_client", const std::string &connection = "close", const std::string &body = "", const bool https = true);
+            Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent = "granada_client", const std::string &connection = "close", const std::string &body = "", const bool https = true);
             void addHeader(const std::string &, const std::string &value);
             void addQuery(const std::string &, const std::string &value = "");
         };
@@ -83,10 +83,15 @@ namespace granada
         {
         private:
             io_contextPtr io_context_;
+            void prepareRequest(const RequestPtr &);
+            void writeQueryStream(std::unordered_map<std::string, std::string> &, std::ostream &);
+
         public:
-            HttpContext(io_contextPtr &io_context, RequestPtr &, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
+            HttpContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
                 : io_context_(io_context), sock(*io_context, getSSLCtx()), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler)
-                {}
+                {
+                    prepareRequest(request);
+                }
 
             HttpContext(const HttpContext &) = delete;
             HttpContext &operator=(const HttpContext &) = delete;
@@ -109,6 +114,7 @@ namespace granada
             bool getResponse(ResponsePtr &);
             static bool parseStatusLine(const StatusLine &, ResponseStatus &);
             static bool parseHeaders(const std::vector<HeaderLine> &, RespHeaders &);
+            static void split(const std::string &, const char, std::vector<std::string> &);
         };
 
         MAKE_SHARED_PTR(HttpContext);

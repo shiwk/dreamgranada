@@ -13,7 +13,7 @@ namespace granada
         Fetcher(events::BusPtr bus) : roles::GranadaRole(bus) {};
         virtual void OnEvent(events::EventPtr event) override;
         ~Fetcher() {
-            LOG_MSG(INFO, "Fetcher destroyed");
+            LOG_INFO( "Fetcher destroyed");
         }
     };
     

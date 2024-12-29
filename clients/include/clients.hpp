@@ -12,7 +12,7 @@ namespace ssl = boost::asio::ssl;
 
 #define HTTP "http"
 #define HTTPS "https"
-#define GET "GET"
+// #define GET "GET"
 
 namespace granada
 {

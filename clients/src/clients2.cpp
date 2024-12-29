@@ -16,7 +16,7 @@ void HttpClient2::onResolve(const error_code &error, tcp::resolver::results_type
 {
     if (error)
     {
-        LOG_FMT(ERROR, "Resolve error: {}", error.message());
+        LOG_ERROR_FMT("Resolve error: {}", error.message());
         return;
     }
 
@@ -28,7 +28,7 @@ void HttpClient2::onConnect(const error_code &error, const HttpContextPtr &conte
 {
     if (error)
     {
-        LOG_FMT(ERROR, "Connect error: {}", error.message());
+        LOG_ERROR_FMT("Connect error: {}", error.message());
         return;
     }
 
@@ -40,7 +40,7 @@ void HttpClient2::onHandshake(const error_code &error, const HttpContextPtr &con
 {
     if (error)
     {
-        LOG_FMT(ERROR, "Handshake error: {}", error.message());
+        LOG_ERROR_FMT("Handshake error: {}", error.message());
         return;
     }
 
@@ -53,7 +53,7 @@ void HttpClient2::onWrite(const error_code &error, std::size_t bytes_transferred
 {
     if (error)
     {
-        LOG_FMT(ERROR, "Write error: {}", error.message());
+        LOG_ERROR_FMT("Write error: {}", error.message());
         return;
     }
 
@@ -71,7 +71,7 @@ void HttpClient2::onReadStatusLine(const error_code &error, const HttpContextPtr
 {
     if (error)
     {
-        LOG_FMT(ERROR, "Read status line error: {}", error.message());
+        LOG_ERROR_FMT("Read status line error: {}", error.message());
         return;
     }
 
@@ -94,7 +94,7 @@ void HttpClient2::onReadHeaders(const error_code &error, const HttpContextPtr &c
 {
     if (error)
     {
-        LOG_FMT(ERROR, "Read http lint error: {}", error.message());
+        LOG_ERROR_FMT("Read http lint error: {}", error.message());
         return;
     }
 

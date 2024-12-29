@@ -6,6 +6,7 @@ namespace granada
     namespace clients
     {
 
+
         asio::ssl::context &HttpClient::getClientSSLCtx()
         {
             static asio::ssl::context ctx(asio::ssl::context::sslv23);
@@ -19,22 +20,22 @@ namespace granada
             path_ = path;
             method_ = method;
             requestCallback_ = requestCallback;
-            LOG_FMT(INFO, "Requesting {} {}://{}", method, https_ ? HTTPS : HTTP, host + path);
+            LOG_INFO_FMT("Requesting {} {}://{}", method, https_ ? HTTPS : HTTP, host + path);
             resolver_.async_resolve(host, https_ ? HTTPS : HTTP, [this](const system::error_code &error, tcp::resolver::results_type endpoints)
                                     { onResolve(error, endpoints); });
         }
 
         void HttpClient::onResolve(const system::error_code &error, tcp::resolver::results_type endpoints)
         {
-            LOG_MSG(INFO, "Client resloved and connecting..");
+            LOG_INFO( "Client resloved and connecting..");
             if (error)
             {
-                LOG_FMT(ERROR, "Resolve error: {}", error.message());
+                LOG_ERROR_FMT("Resolve error: {}", error.message());
                 return;
             }
             for (auto &endpoint : endpoints)
             {
-                LOG_FMT(INFO, "Endpoint: {}", endpoint.endpoint().address().to_string());
+                LOG_INFO_FMT("Endpoint: {}", endpoint.endpoint().address().to_string());
             }
             asio::async_connect(socket_.lowest_layer(), endpoints, [this](const system::error_code &error, tcp::endpoint)
                                 { onConnect(error); });
@@ -42,11 +43,11 @@ namespace granada
 
         void HttpClient::onConnect(const system::error_code &error)
         {
-            LOG_MSG(INFO, "Client connecting..");
+            LOG_INFO( "Client connecting..");
 
             if (error)
             {
-                LOG_FMT(ERROR, "Connect error: {}", error.message());
+                LOG_ERROR_FMT("Connect error: {}", error.message());
                 return;
             }
 
@@ -56,11 +57,11 @@ namespace granada
 
         void HttpClient::onHandshake(const system::error_code &error)
         {
-            LOG_MSG(INFO, "Client handshaked");
+            LOG_INFO( "Client handshaked");
 
             if (error)
             {
-                LOG_FMT(ERROR, "Handshake error: {}", error.message());
+                LOG_ERROR_FMT("Handshake error: {}", error.message());
                 return;
             }
 
@@ -71,11 +72,11 @@ namespace granada
 
         void HttpClient::onWrite(const system::error_code &error, std::size_t bytes_transferred)
         {
-            LOG_MSG(INFO, "Client writing..");
+            LOG_INFO( "Client writing..");
 
             if (error)
             {
-                LOG_FMT(ERROR, "Write error: {}", error.message());
+                LOG_ERROR_FMT("Write error: {}", error.message());
                 return;
             }
 
@@ -85,16 +86,16 @@ namespace granada
 
         void HttpClient::onRead(const system::error_code &error, std::size_t bytes_transferred)
         {
-            LOG_MSG(INFO, "Client reading..");
+            LOG_INFO( "Client reading..");
 
             if (error && error != asio::error::eof)
             {
-                LOG_FMT(ERROR, "Read error: {}", error.message());
+                LOG_ERROR_FMT("Read error: {}", error.message());
                 return;
             }
 
             const std::string response(buffer_.data(), bytes_transferred);
-            LOG_FMT(INFO, "Response:\n{}", response);
+            LOG_INFO_FMT("Response:\n{}", response);
             requestCallback_(error, response);
 
             socket_.lowest_layer().close();
@@ -120,7 +121,7 @@ namespace granada
 
         HttpClient::~HttpClient()
         {
-            LOG_MSG(INFO, "HttpClient destroyed");
+            LOG_INFO( "HttpClient destroyed");
             if (socket_.lowest_layer().is_open())
             {
                 socket_.lowest_layer().close();
@@ -132,7 +133,7 @@ namespace granada
               socket_(io_context, getClientSSLCtx()),
               https_(https)
         {
-            LOG_MSG(INFO, "Client created");
+            LOG_INFO( "Client created");
         }
     }
 };

@@ -5,13 +5,18 @@ namespace granada
 {
     void Fetcher::OnEvent(events::EventPtr event)
     {
-        LOG_FMT(INFO, "Fetcher Received event {} {}", event->name(), event->type());
-        asyncRequest(GET, "www.baidu.com", "/", [this](const boost::system::error_code &ec, std::string response)
+        LOG_INFO_FMT("Fetcher Received event {} {}", event->name(), event->type());
+        auto request = std::make_shared<http::Request>(http::Method::GET, "www.baidu.com", "/");
+        asyncRequest3(request, [this](const boost::system::error_code &ec, http::ResponsePtr &response)
                     {
-                        LOG_FMT(INFO, "Fetcher received response: {}", response);
+                        LOG_INFO_FMT("Fetcher received response: {}", response->content);
                         post(std::make_shared<events::CommonEvent>());
+                    },
+                    [this](const boost::system::error_code &ec)
+                    {
+                        LOG_ERROR_FMT("Fetcher error: {}", ec.message());
                     });
-        LOG_MSG(INFO, "Fetcher sending request");
+        LOG_INFO( "Fetcher sending request");
+        // sleep(10);
     }
-
 }

@@ -1,18 +1,15 @@
-#ifndef CLIENTS_HPP
-#define CLIENTS_HPP
+#ifndef CLIENTS2_HPP
+#define CLIENTS2_HPP
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include "httpctx.hpp"
+#include "logger.hpp"
 
 using namespace boost;
 using boost::asio::ip::tcp;
 namespace ssl = boost::asio::ssl;
-
-#define HTTP "http"
-#define HTTPS "https"
-#define GET "GET"
 
 
 namespace granada
@@ -35,7 +32,9 @@ namespace granada
 
         public:
             HttpClient2(io_contextPtr &io_context): io_context_(io_context) {};
-            ~HttpClient2();
+            ~HttpClient2(){
+                LOG_INFO( "HttpClient2 destroyed");
+            };
             void asyncRequest(RequestPtr &, const ResponseHandler &, const ErrorHandler &);
         };
 

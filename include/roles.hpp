@@ -3,8 +3,11 @@
 
 #include "bus.hpp"
 #include "clients.hpp"
+#include "clients2.hpp"
+#include "clients3.hpp"
 #include "logger.hpp"
 
+namespace http = granada::http;
 namespace granada
 {
     namespace roles
@@ -16,6 +19,8 @@ namespace granada
             virtual ~Post() {}
             void post(events::EventPtr event);
             std::shared_ptr<clients::HttpClient> asyncRequest(const std::string& method, const std::string &host, const std::string &path, const clients::RequestCallback &callback);
+            void asyncRequest2(http::RequestPtr& request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler);
+            void asyncRequest3(http::RequestPtr& request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler);
 
         protected:
             events::BusWeakPtr bus_;

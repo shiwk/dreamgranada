@@ -3,24 +3,9 @@
 
 using namespace granada::http;
 
-void split(const std::string &s, char delimiter, std::vector<std::string> &tokens)
-{
-    std::string token;
-    std::istringstream tokenStream(s);
-
-    while (std::getline(tokenStream, token, delimiter))
-    {
-        tokens.push_back(token);
-    }
-}
-
-Request::Request(const Method &method, const std::string &path, const std::string &host, const std::string &user_agent, const std::string &connection, const std::string &body, bool https)
+Request::Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent, const std::string &connection, const std::string &body, bool https)
     : https(https), method(method), path(path), host(host), user_agent(user_agent), body(body)
 {
-    if (!body.empty())
-    {
-        contentLength = body.size();
-    }
 }
 
 void Request::addHeader(const std::string &header, const std::string &value)
@@ -33,10 +18,58 @@ void Request::addQuery(const std::string &key, const std::string &value)
     queries[key] = value;
 }
 
+void HttpContext::writeQueryStream(std::unordered_map<std::string, std::string> &queries, std::ostream &stream)
+{
+    for (auto it = queries.begin(); it != queries.end(); ++it) {
+        if (it != queries.begin()) {
+            stream << "&";
+        }
+        stream << it->first << "=" << it->second;
+    }
+}
+
 ssl::context &HttpContext::getSSLCtx()
 {
     static asio::ssl::context ctx(asio::ssl::context::sslv23);
     return ctx;
+}
+
+void HttpContext::prepareRequest(const RequestPtr &request)
+{
+    std::ostream reqStream(&reqBuff);
+    std::ostringstream queryStream;
+    size_t contentLength = 0;
+    std::string queryStr;
+    switch (request->method) {
+        case Method::GET:
+            reqStream << "GET " << request->path << (request->queries.empty() ? "" : "?");
+            writeQueryStream(request->queries, reqStream);
+            reqStream << " HTTP/1.1\r\n";
+            reqStream << "Host: " << request->host << "\r\n";
+            reqStream << "User-Agent: " << request->user_agent << "\r\n";
+            reqStream << "Accept: */*\r\n";
+            reqStream << "Connection: close\r\n";
+            reqStream << "\r\n";
+            break;
+
+        case Method::POST:
+            reqStream << "POST " << request->path << " HTTP/1.1\r\n";
+            reqStream << "Host: " << request->host << "\r\n";
+            reqStream << "User-Agent: " << request->user_agent << "\r\n";
+            reqStream << "Accept: */*\r\n";
+            reqStream << "Content-Type: application/x-www-form-urlencoded\r\n";
+            writeQueryStream(request->queries, queryStream);
+            queryStr = queryStream.str();
+            contentLength = queryStr.size();
+            reqStream << "Content-Length: " << contentLength << "\r\n";
+            reqStream << "Connection: close\r\n";
+            reqStream << "\r\n";
+            reqStream << queryStr;
+            break;
+        
+        default:
+            break;
+    }
 }
 
 void HttpContext::addRespHeaderLine(const std::string &line)
@@ -48,17 +81,16 @@ void HttpContext::complete(const error_code &error)
 {
     if (error != boost::asio::error::eof)
     {
-        LOG_MSG(ERROR, "Read body error");
+        LOG_ERROR( "Read body error");
         errorHandler(error);
         return;
     }
 
-    LOG_MSG(INFO, "Read response body done");
     ResponsePtr resp = std::make_shared<Response>();
     bool success = getResponse(resp);
     if (!success)
     {
-        LOG_MSG(ERROR, "Failed to parse response");
+        LOG_ERROR( "Failed to parse response");
         errorHandler(error);
         return;
     }
@@ -72,13 +104,13 @@ bool HttpContext::getResponse(ResponsePtr &resp)
     parseResult = parseStatusLine(respStatusLine, *resp);
     if (!parseResult)
     {
-        LOG_MSG(ERROR, "Failed to parse status line");
+        LOG_ERROR( "Failed to parse status line");
         return false;
     }
     parseResult = parseHeaders(respHeaders, resp->headers);
     if (!parseResult)
     {
-        LOG_MSG(ERROR, "Failed to parse headers");
+        LOG_ERROR( "Failed to parse headers");
         return false;
     }
     
@@ -93,7 +125,11 @@ bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatus & resp)
 
     if (tokens.size() != 3)
     {
-        LOG_FMT(ERROR, "Invalid status line: {}", line);
+        LOG_ERROR_FMT("Invalid status line: {}", line);
+        for (const auto &token : tokens)
+        {
+            LOG_ERROR_FMT("Token: {}", token);
+        }
         return false;
     }
     resp.version = tokens[0];
@@ -106,20 +142,31 @@ bool HttpContext::parseHeaders(const std::vector<HeaderLine> &lines, RespHeaders
 {
     for (const auto &line : lines)
     {
-        std::vector<std::string> tokens;
-        split(line, ':', tokens);
-        if (tokens.size() != 2)
+        size_t pos = line.find(':');
+        if (pos == std::string::npos)
         {
-            LOG_FMT(ERROR, "Invalid header line: {}", line);
+            LOG_ERROR_FMT("Invalid header line: {}", line);
             return false;
         }
-        std::string key = tokens[0];
+
+        std::string key = std::move(line.substr(0, pos));
 
         key = key.substr(key.find_last_not_of(" \t\n"), key.find_last_not_of(" \t\n") - key.find_first_not_of(" \t\n") + 1);
-        std::string value = tokens[1];
+        std::string value = std::move(line.substr(pos + 1));
         value = value.substr(key.find_last_not_of(" \t\n"), value.find_last_not_of(" \t\n") - value.find_first_not_of(" \t\n") + 1);
         headers[key] = value;
     }
 
     return true;
+}
+
+void HttpContext::split(const std::string &s, const char delimiter, std::vector<std::string> &tokens)
+{
+    std::string token;
+    std::istringstream tokenStream(s);
+
+    while (std::getline(tokenStream, token, delimiter))
+    {
+        tokens.push_back(token);
+    }
 }

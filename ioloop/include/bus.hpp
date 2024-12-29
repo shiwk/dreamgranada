@@ -8,27 +8,31 @@
 
 
 using namespace boost;
+using namespace boost::asio;
 namespace granada
 {
     namespace events
     {
         class Bus
         {
+        MAKE_SHARED_PTR(io_context);
+            
         private:
-            std::shared_ptr<asio::io_context> io_context_;
-            asio::strand<asio::io_context::executor_type> strand_;
+            io_contextPtr io_context_;
+            strand<io_context::executor_type> strand_;
             EventHandlerPtr event_handler_;
             std::future<void> io_thread_;
             std::function<void(EventPtr)> handlerCallback_;
-            static void onTimeout(asio::steady_timer&, std::shared_ptr<asio::io_context>);
+            static void onTimeout(steady_timer&, std::shared_ptr<io_context>);
         public:
             Bus();
             ~Bus();
             void setHandlerCallback(std::function<void(EventPtr)>);
             void postEvent(EventPtr);
             void start();
-            // std::shared_ptr<asio::io_context> getIOContext() const;
-            asio::io_context& getIOContext() const;
+            // std::shared_ptr<io_context> getIOContext() const;
+            io_context& getIOContext() const;
+            io_contextPtr& getIOContextPtr();
             // void delayPost(EventPtr, std::chrono::seconds);
             
         };
