@@ -12,11 +12,11 @@ namespace granada
 {
     namespace roles
     {
-        class Post
+        class Poster
         {
         public:
-            Post(events::BusPtr bus) : bus_(bus) {}
-            virtual ~Post() {}
+            Poster(events::BusPtr bus) : bus_(bus) {}
+            virtual ~Poster() {}
             void post(events::EventPtr event);
             std::shared_ptr<clients::HttpClient> asyncRequest(const std::string& method, const std::string &host, const std::string &path, const clients::RequestCallback &callback);
             void asyncRequest2(http::RequestPtr& request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler);
@@ -26,10 +26,10 @@ namespace granada
             events::BusWeakPtr bus_;
         };
 
-        class GranadaRole : public Post
+        class GranadaRole : public Poster
         {
         public:
-            GranadaRole(events::BusPtr bus) : Post(bus) {};
+            GranadaRole(events::BusPtr bus) : Poster(bus) {};
             virtual void OnEvent(events::EventPtr event) = 0;
             virtual ~GranadaRole() {}
 

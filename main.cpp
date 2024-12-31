@@ -34,9 +34,10 @@ int main(int argc, char *argv[])
     auto fetcher = std::make_shared<Fetcher>(eventBus);
     ioloop->subscribe(fetcher);
     granada::events::EventPtr eventPtr ((Event*)new CommonEvent());
-    eventBus->postEvent(eventPtr);
+    LOG_INFO("Publish first event");
+    eventBus->publish(eventPtr);
 
     f.wait();
 
-    LOG_INFO( "hello, granada");
+    LOG_INFO("hello, granada");
 }

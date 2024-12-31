@@ -4,7 +4,7 @@
 using namespace boost;
 using namespace granada::http;
 
-void HttpClient3::asyncRequest(io_contextPtr& io_context, RequestPtr &request, const ResponseHandler &requestCallback, const ErrorHandler &errorHandler)
+void HttpClient3::asyncRequest(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &requestCallback, const ErrorHandler &errorHandler)
 {
     auto resolver = std::make_shared<tcp::resolver>(*io_context);
     auto context = std::make_shared<HttpContext>(io_context, request, requestCallback, errorHandler);
@@ -22,7 +22,6 @@ void HttpClient3::onResolve(const error_code &error, tcp::resolver::results_type
         return;
     }
 
-    LOG_INFO( "Client resloved and connecting..");
     for (auto &endpoint : endpoints)
     {
         LOG_DEBUG_FMT("Endpoint: {}", endpoint.endpoint().address().to_string());
@@ -40,12 +39,11 @@ void HttpClient3::onConnect(const error_code &error, const HttpContextPtr &conte
         return;
     }
 
-    LOG_DEBUG( "Client connected and handshaking..");
+    LOG_DEBUG("Client connected and handshaking..");
 
     context->sock.async_handshake(ssl::stream_base::client, [context](const error_code &error)
                                   { onHandshake(error, context); });
 }
-
 
 void HttpClient3::onHandshake(const error_code &error, const HttpContextPtr &context)
 {
@@ -55,7 +53,7 @@ void HttpClient3::onHandshake(const error_code &error, const HttpContextPtr &con
         return;
     }
 
-    LOG_DEBUG( "Client handshaked and writing..");
+    LOG_DEBUG("Client handshaked and writing..");
     auto &buffer = context->reqBuff;
     asio::async_write(context->sock, buffer, [context](const error_code &error, std::size_t bytes_transferred)
                       { onWrite(error, bytes_transferred, context); });
@@ -128,7 +126,6 @@ void HttpClient3::onReadHeaders(const error_code &error, const std::size_t read_
     LOG_DEBUG_FMT("read header: len({})", read_size);
     LOG_DEBUG_FMT("buffer size: len({})", buffer.size());
 
-
     asio::async_read(context->sock, buffer, boost::asio::transfer_at_least(1),
                      [context](const error_code &err, std::size_t size)
                      {
@@ -144,12 +141,11 @@ void HttpClient3::onReadBody(const error_code &error, const std::size_t read_siz
         context->errorHandler(error);
     }
 
-    LOG_INFO_FMT("read body : {} bytes", read_size);
     auto &buffer = context->respBuff;
-        RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
-        buffer.consume(buffer.size());
-        context->respBody.append(body);
-    
+    RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
+    buffer.consume(buffer.size());
+    context->respBody.append(body);
+
     if (!error)
     {
         return asio::async_read(context->sock, buffer, boost::asio::transfer_at_least(1),
@@ -157,10 +153,8 @@ void HttpClient3::onReadBody(const error_code &error, const std::size_t read_siz
                                 {
                                     onReadBody(err, size, context);
                                 });
-
     }
-    
-    LOG_INFO( "Read response done");
+
+    LOG_INFO("Read response done");
     context->complete(error);
-    
 }

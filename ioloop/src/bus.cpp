@@ -6,30 +6,28 @@ namespace granada
 {
     namespace events
     {
-        void Bus::onTimeout(asio::steady_timer& timer, std::shared_ptr<asio::io_context> io)
+        void Bus::onTimeout(std::shared_ptr<asio::steady_timer> &timer, std::shared_ptr<asio::io_context> &io)
         {
-
-            // 重新设置定时器的过期时间
-            timer.expires_at(timer.expiry() + std::chrono::seconds(1));
-
-            // 重新安排定时器的回调
-            timer.async_wait([&](const system::error_code& error) {
-                LOG_INFO( "Timer expired");
-                if (!error) {
-                    onTimeout(timer, io);
-                }
-            });
+            timer->expires_at(timer->expiry() + std::chrono::seconds(1));
+            timer->async_wait([&](const system::error_code &error)
+                              {
+                                  if (!error)
+                                  {
+                                    LOG_INFO("BUS HB ONCE");
+                                  }
+                                  else
+                                  {
+                                    LOG_ERROR_FMT("BUS ERROR: {}", error.message());
+                                  }
+                                  onTimeout(timer, io); });
         }
 
-        // ioevents::ioevents(EventHandlerPtr event_handler) : io_context_(std::make_unique<boost::asio::io_context>()),
-        //                                                                      strand_(boost::asio::make_strand(*io_context_)),
-        //                                                                      event_handler_(event_handler) {}
         Bus::Bus() : io_context_(std::make_shared<boost::asio::io_context>()),
                      strand_(boost::asio::make_strand(*io_context_)) {}
 
         Bus::~Bus()
         {
-            LOG_INFO( "Bus destructor");
+            LOG_INFO("Bus destructor");
             io_context_->stop();
             io_thread_.wait();
         }
@@ -41,61 +39,37 @@ namespace granada
 
         void Bus::start()
         {
-            LOG_INFO( "Bus starting..");
-            // auto timer =  std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(1));
-            asio::steady_timer timer(*io_context_, std::chrono::seconds(1));
+            LOG_INFO("Bus starting..");
+            std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(1));
             onTimeout(timer, io_context_);
             io_context_->run();
-            // io_thread_ = std::async(std::launch::async, [this]
-            //                         { io_context_->run(); });
-
-            // // 启动定时器并设置回调
-            // timer->async_wait([&](const system::error_code& error) {
-            //     if (!error) {
-            //         onTimeout(timer, io_context_);
-            //     }
-            // });
         }
 
-        // std::shared_ptr<boost::asio::io_context> Bus::getIOContext() const
-        // {
-        //     return io_context_;
-        // }
-
-        asio::io_context& Bus::getIOContext() const
+        asio::io_context &Bus::getIOContext() const
         {
             return *io_context_;
         }
 
-        Bus::io_contextPtr& Bus::getIOContextPtr()
+        Bus::io_contextPtr &Bus::getIOContextPtr()
         {
             return io_context_;
         }
 
-
-        // void Bus::delayPost(EventPtr even t, std::chrono::seconds delay)
-        // {
-        //     boost::asio::steady_timer timer(*io_context_, delay);
-        //     timer.async_wait([this, &event](const boost::system::error_code &ec)
-        //                      {
-        //                          if (ec)
-        //                          {
-        //                              LOG_ERROR_FMT("Error: {}", ec.message());
-        //                          }
-        //                          else
-        //                          {
-        //                              LOG_INFO( "Timer expired");
-        //                              handlerCallback_(event);
-        //                          }
-        //                      });
-        // }
-
-        void Bus::postEvent(EventPtr event)
+        void Bus::publish(EventPtr &event)
         {
-            boost::asio::post(strand_, [this, event]()
-                              { 
-                                handlerCallback_(event);
-                               });
+            if (event->delay() > 0)
+            {
+                LOG_DEBUG_FMT("delayed event: {} delayed {}s ", event->name(), event->delay());
+                std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(event->delay()));
+                timer->async_wait(asio::bind_executor(strand_, [this, timer, event](const boost::system::error_code &ec)
+                                                      { handlerCallback_(event); }));
+            }
+            else
+            {
+                LOG_DEBUG_FMT("new event: {}", event->name());
+                boost::asio::post(strand_, [this, event]()
+                                  { handlerCallback_(event); });
+            }
         }
     }
 }

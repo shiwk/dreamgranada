@@ -10,7 +10,7 @@ namespace granada
         asyncRequest3(request, [this](const boost::system::error_code &ec, http::ResponsePtr &response)
                     {
                         LOG_INFO_FMT("Fetcher received response: {}", response->content);
-                        post(std::make_shared<events::CommonEvent>());
+                        post(std::make_shared<events::DelayedEvent>(1));
                     },
                     [this](const boost::system::error_code &ec)
                     {
