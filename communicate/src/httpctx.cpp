@@ -20,8 +20,10 @@ void Request::addQuery(const std::string &key, const std::string &value)
 
 void HttpContext::writeQueryStream(std::unordered_map<std::string, std::string> &queries, std::ostream &stream)
 {
-    for (auto it = queries.begin(); it != queries.end(); ++it) {
-        if (it != queries.begin()) {
+    for (auto it = queries.begin(); it != queries.end(); ++it)
+    {
+        if (it != queries.begin())
+        {
             stream << "&";
         }
         stream << it->first << "=" << it->second;
@@ -30,7 +32,8 @@ void HttpContext::writeQueryStream(std::unordered_map<std::string, std::string> 
 
 void HttpContext::writeResqHeaders(std::unordered_map<std::string, std::string> &headers, std::ostream &stream)
 {
-    for (auto it = headers.begin(); it != headers.end(); ++it) {
+    for (auto it = headers.begin(); it != headers.end(); ++it)
+    {
         stream << it->first << ": " << it->second << "\r\n";
     }
 }
@@ -47,39 +50,40 @@ void HttpContext::prepareRequest(const RequestPtr &request)
     std::ostringstream queryStream;
     size_t contentLength = 0;
     std::string queryStr;
-    switch (request->method) {
-        case Method::GET:
-            reqStream << "GET " << request->path << (request->queries.empty() ? "" : "?");
-            writeQueryStream(request->queries, reqStream);
-            reqStream << " HTTP/1.1\r\n";
-            reqStream << "Host: " << request->host << (request->https ? ":443" : "") << "\r\n";
-            writeResqHeaders(request->headers, reqStream);
-            reqStream << "User-Agent: " << request->user_agent << "\r\n";
-            reqStream << "Connection: " << request->connection << "\r\n";
-            reqStream << "\r\n";
+    switch (request->method)
+    {
+    case Method::GET:
+        reqStream << "GET " << request->path << (request->queries.empty() ? "" : "?");
+        writeQueryStream(request->queries, reqStream);
+        reqStream << " HTTP/1.1\r\n";
+        reqStream << "Host: " << request->host << "\r\n";
+        writeResqHeaders(request->headers, reqStream);
+        reqStream << "User-Agent: " << request->user_agent << "\r\n";
+        reqStream << "Connection: " << request->connection << "\r\n";
+        reqStream << "\r\n";
 
-            #ifdef DEBUG_BUILD
-            dumpRequest(request);
-            #endif
-            break;
+#ifdef DEBUG_BUILD
+// dumpRequest(request);
+#endif
+        break;
 
-        case Method::POST:
-            reqStream << "POST " << request->path << " HTTP/1.1\r\n";
-            reqStream << "Host: " << request->host << "\r\n";
-            reqStream << "User-Agent: " << request->user_agent << "\r\n";
-            reqStream << "Accept: */*\r\n";
-            reqStream << "Content-Type: application/x-www-form-urlencoded\r\n";
-            writeQueryStream(request->queries, queryStream);
-            queryStr = queryStream.str();
-            contentLength = queryStr.size();
-            reqStream << "Content-Length: " << contentLength << "\r\n";
-            reqStream << "Connection: close\r\n";
-            reqStream << "\r\n";
-            reqStream << queryStr;
-            break;
-        
-        default:
-            break;
+    case Method::POST:
+        reqStream << "POST " << request->path << " HTTP/1.1\r\n";
+        reqStream << "Host: " << request->host << "\r\n";
+        reqStream << "User-Agent: " << request->user_agent << "\r\n";
+        reqStream << "Accept: */*\r\n";
+        reqStream << "Content-Type: application/x-www-form-urlencoded\r\n";
+        writeQueryStream(request->queries, queryStream);
+        queryStr = queryStream.str();
+        contentLength = queryStr.size();
+        reqStream << "Content-Length: " << contentLength << "\r\n";
+        reqStream << "Connection: close\r\n";
+        reqStream << "\r\n";
+        reqStream << queryStr;
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -92,7 +96,7 @@ void HttpContext::complete(const error_code &error)
 {
     if (error != boost::asio::error::eof)
     {
-        LOG_ERROR( "Read body error");
+        LOG_ERROR("Read body error");
         errorHandler(error);
         return;
     }
@@ -101,7 +105,7 @@ void HttpContext::complete(const error_code &error)
     bool success = getResponse(resp);
     if (!success)
     {
-        LOG_ERROR( "Failed to parse response");
+        LOG_ERROR("Failed to parse response");
         errorHandler(error);
         return;
     }
@@ -115,26 +119,26 @@ bool HttpContext::getResponse(ResponsePtr &resp)
     parseResult = parseStatusLine(respStatusLine, *resp);
     if (!parseResult)
     {
-        LOG_ERROR( "Failed to parse status line");
+        LOG_ERROR("Failed to parse status line");
         return false;
     }
     parseResult = parseHeaders(respHeaders, resp->headers);
     if (!parseResult)
     {
-        LOG_ERROR( "Failed to parse headers");
+        LOG_ERROR("Failed to parse headers");
         return false;
     }
-    
+
     resp->content = std::move(respBody);
     return true;
 }
 
-bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatus & resp)
+bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatus &resp)
 {
     std::vector<std::string> tokens;
     split(line, ' ', tokens);
 
-    if (tokens.size() != 3)
+    if (tokens.size() < 3)
     {
         LOG_ERROR_FMT("Invalid status line: {}", line);
         for (const auto &token : tokens)
@@ -143,9 +147,18 @@ bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatus & resp)
         }
         return false;
     }
-    resp.version = tokens[0];
-    resp.statusCode = std::stoi(tokens[1]);
-    resp.statusMessage = tokens[2];
+    std::istringstream stream(line);
+
+    stream >> resp.version;
+
+    stream >> resp.statusCode;
+
+    std::getline(stream, resp.statusMessage);
+
+    if (!resp.statusMessage.empty() && resp.statusMessage[0] == ' ')
+    {
+        resp.statusMessage.erase(0, 1);
+    }
     return true;
 }
 
@@ -186,7 +199,7 @@ void granada::http::HttpContext::dumpRequest(RequestPtr request)
 {
     std::istream is(&reqBuff);
     std::string data((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
-    LOG_DEBUG_FMT( "Request stream: {}", data);
+    LOG_DEBUG_FMT("Request stream: {}", data);
     reqBuff.consume(reqBuff.size());
     is.clear();
     is.seekg(0);
