@@ -26,10 +26,8 @@ namespace granada
         {
         public:
             GranadaRole(events::BusPtr bus) : Poster(bus) {};
-            virtual void OnEvent(events::EventPtr event) = 0;
+            virtual void onEvent(events::EventPtr event) = 0;
             virtual ~GranadaRole() {}
-
-        private:
         };
 
         MAKE_SHARED_PTR(GranadaRole);

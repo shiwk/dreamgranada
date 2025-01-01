@@ -85,6 +85,7 @@ namespace granada
             io_contextPtr io_context_;
             void prepareRequest(const RequestPtr &);
             void writeQueryStream(std::unordered_map<std::string, std::string> &, std::ostream &);
+            void writeResqHeaders(std::unordered_map<std::string, std::string> &, std::ostream &);
 
         public:
             HttpContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
@@ -115,6 +116,7 @@ namespace granada
             static bool parseStatusLine(const StatusLine &, ResponseStatus &);
             static bool parseHeaders(const std::vector<HeaderLine> &, RespHeaders &);
             static void split(const std::string &, const char, std::vector<std::string> &);
+            void dumpRequest(RequestPtr request);
         };
 
         MAKE_SHARED_PTR(HttpContext);

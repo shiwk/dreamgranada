@@ -21,7 +21,7 @@ namespace granada
         LOG_INFO_FMT("Received event {} {}", event->name(), event->type());
         for (auto role : roles_)
         {
-            role->OnEvent(event);
+            role->onEvent(event);
         }
     }
     

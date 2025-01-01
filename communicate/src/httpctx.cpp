@@ -4,7 +4,7 @@
 using namespace granada::http;
 
 Request::Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent, const std::string &connection, const std::string &body, bool https)
-    : https(https), method(method), path(path), host(host), user_agent(user_agent), body(body)
+    : https(https), method(method), path(path), host(host), user_agent(user_agent), body(body), connection(connection)
 {
 }
 
@@ -28,6 +28,13 @@ void HttpContext::writeQueryStream(std::unordered_map<std::string, std::string> 
     }
 }
 
+void HttpContext::writeResqHeaders(std::unordered_map<std::string, std::string> &headers, std::ostream &stream)
+{
+    for (auto it = headers.begin(); it != headers.end(); ++it) {
+        stream << it->first << ": " << it->second << "\r\n";
+    }
+}
+
 ssl::context &HttpContext::getSSLCtx()
 {
     static asio::ssl::context ctx(asio::ssl::context::sslv23);
@@ -45,11 +52,15 @@ void HttpContext::prepareRequest(const RequestPtr &request)
             reqStream << "GET " << request->path << (request->queries.empty() ? "" : "?");
             writeQueryStream(request->queries, reqStream);
             reqStream << " HTTP/1.1\r\n";
-            reqStream << "Host: " << request->host << "\r\n";
+            reqStream << "Host: " << request->host << (request->https ? ":443" : "") << "\r\n";
+            writeResqHeaders(request->headers, reqStream);
             reqStream << "User-Agent: " << request->user_agent << "\r\n";
-            reqStream << "Accept: */*\r\n";
-            reqStream << "Connection: close\r\n";
+            reqStream << "Connection: " << request->connection << "\r\n";
             reqStream << "\r\n";
+
+            #ifdef DEBUG_BUILD
+            dumpRequest(request);
+            #endif
             break;
 
         case Method::POST:
@@ -169,4 +180,14 @@ void HttpContext::split(const std::string &s, const char delimiter, std::vector<
     {
         tokens.push_back(token);
     }
+}
+
+void granada::http::HttpContext::dumpRequest(RequestPtr request)
+{
+    std::istream is(&reqBuff);
+    std::string data((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
+    LOG_DEBUG_FMT( "Request stream: {}", data);
+    reqBuff.consume(reqBuff.size());
+    is.clear();
+    is.seekg(0);
 }
