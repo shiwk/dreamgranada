@@ -1,5 +1,4 @@
 #include "bus.hpp"
-#include "handler.hpp"
 #include "logger.hpp"
 
 namespace granada
@@ -32,9 +31,14 @@ namespace granada
             io_thread_.wait();
         }
 
-        void Bus::setHandlerCallback(std::function<void(EventPtr)> handlerCallback)
+        void Bus::setBusStop(std::function<void(EventPtr)> handlerCallback)
         {
             handlerCallback_ = handlerCallback;
+        }
+
+        void Bus::newBusStop(BusStopPtr &stop)
+        {
+            busStops_.emplace_back(stop);
         }
 
         void Bus::start()
@@ -55,20 +59,26 @@ namespace granada
             return io_context_;
         }
 
-        void Bus::publish(EventPtr &event)
+        void Bus::board(EventPtr &event)
         {
             if (event->delay() > 0)
             {
                 LOG_DEBUG_FMT("delayed event: {} delayed {}s ", event->name(), event->delay());
-                std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(event->delay()));
-                timer->async_wait(asio::bind_executor(strand_, [this, timer, event](const boost::system::error_code &ec)
-                                                      { handlerCallback_(event); }));
+                for (auto &stop : busStops_)
+                {
+                    std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(event->delay()));
+                    timer->async_wait(asio::bind_executor(strand_, [timer, stop, event](const boost::system::error_code &ec)
+                                                        { stop->onEvent(event); }));
+                }
+                
             }
             else
             {
                 LOG_DEBUG_FMT("new event: {}", event->name());
-                boost::asio::post(strand_, [this, event]()
-                                  { handlerCallback_(event); });
+                for (auto &stop : busStops_)
+                {
+                    boost::asio::post(strand_, [stop, event]() { stop->onEvent(event); });
+                }
             }
         }
     }

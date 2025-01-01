@@ -2,7 +2,6 @@
 #define IOLOOP_HPP
 
 #include <boost/asio.hpp>
-#include "handler.hpp"
 #include "event.hpp"
 #include "common.hpp"
 #include <boost/enable_shared_from_this.hpp>
@@ -20,16 +19,17 @@ namespace granada
         private:
             io_contextPtr io_context_;
             strand<io_context::executor_type> strand_;
-            EventHandlerPtr event_handler_;
             std::future<void> io_thread_;
             std::function<void(EventPtr)> handlerCallback_;
+            std::vector<BusStopPtr> busStops_;
             static void onTimeout(std::shared_ptr<asio::steady_timer> &, std::shared_ptr<io_context> &);
 
         public:
             Bus();
             ~Bus();
-            void setHandlerCallback(std::function<void(EventPtr)>);
-            void publish(EventPtr &);
+            void setBusStop(std::function<void(EventPtr)>);
+            void newBusStop(BusStopPtr &);
+            void board(EventPtr &);
             void start();
             io_context &getIOContext() const;
             io_contextPtr &getIOContextPtr();

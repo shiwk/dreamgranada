@@ -4,18 +4,19 @@ project(dreamgranada LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ ${CMAKE_CURRENT_SOURCE_DIR}/common)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 add_subdirectory(3rd_party/glog glog)
 add_subdirectory(3rd_party/fmt)
-add_subdirectory(ioloop)
-add_subdirectory(clients)
+add_subdirectory(communicate)
 
-add_executable(dreamgranada 
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+add_library(dreamgranada
                 ${HEADERS} 
                 ${SOURCES})
 
 find_package(Threads REQUIRED)
-target_link_libraries(dreamgranada PRIVATE granada_ioloop granada_client glog::glog fmt::fmt Threads::Threads)
+target_include_directories(dreamgranada PUBLIC ${BOOST_ROOT_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${CMAKE_CURRENT_SOURCE_DIR}/common)
+
+target_link_libraries(dreamgranada PUBLIC granada_comm glog::glog fmt::fmt Threads::Threads)

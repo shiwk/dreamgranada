@@ -2,8 +2,6 @@
 #define ROLES_HPP
 
 #include "bus.hpp"
-#include "clients.hpp"
-#include "clients2.hpp"
 #include "clients3.hpp"
 #include "logger.hpp"
 
@@ -18,8 +16,6 @@ namespace granada
             Poster(events::BusPtr bus) : bus_(bus) {}
             virtual ~Poster() {}
             void post(events::EventPtr event);
-            std::shared_ptr<clients::HttpClient> asyncRequest(const std::string& method, const std::string &host, const std::string &path, const clients::RequestCallback &callback);
-            void asyncRequest2(http::RequestPtr& request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler);
             void asyncRequest3(http::RequestPtr& request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler);
 
         protected:

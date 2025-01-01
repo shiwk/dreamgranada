@@ -45,6 +45,15 @@ namespace granada
             virtual const std::string &name() const override;
             virtual ~DelayedEvent() {}
         };
+
+        class BusStop
+        {
+        public:
+            virtual void onEvent(EventPtr) = 0;
+            virtual ~BusStop() {}
+        };
+
+        MAKE_SHARED_PTR(BusStop);
     }
 }
 
