@@ -79,7 +79,7 @@ namespace granada
         using ResponseHandler = std::function<void(const error_code &, ResponsePtr &)>;
         using HeaderLine = std::string;
         using StatusLine = std::string;
-        struct HttpContext
+        struct HttpContext : std::enable_shared_from_this<HttpContext>
         {
         private:
             io_contextPtr io_context_;
@@ -95,6 +95,7 @@ namespace granada
                 }
 
             HttpContext(const HttpContext &) = delete;
+            ~HttpContext();
             HttpContext &operator=(const HttpContext &) = delete;
             void addRespHeaderLine(const std::string &);
             void complete(const error_code &);

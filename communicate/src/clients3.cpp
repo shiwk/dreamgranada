@@ -138,7 +138,7 @@ void HttpClient3::onReadBody(const error_code &error, const std::size_t read_siz
     if (error && error != asio::error::eof)
     {
         LOG_ERROR_FMT("Read body error: {}", error.message());
-        context->errorHandler(error);
+        context->complete(error);
     }
 
     auto &buffer = context->respBuff;
@@ -156,5 +156,5 @@ void HttpClient3::onReadBody(const error_code &error, const std::size_t read_siz
     }
 
     LOG_INFO("Read response done");
-    context->complete(error);
+    context->complete(asio::error::eof);
 }

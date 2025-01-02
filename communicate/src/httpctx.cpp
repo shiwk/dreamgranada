@@ -204,3 +204,13 @@ void granada::http::HttpContext::dumpRequest(RequestPtr request)
     is.clear();
     is.seekg(0);
 }
+
+
+HttpContext::~HttpContext()
+{
+    LOG_DEBUG("HttpContext destroyed");
+    if (sock.lowest_layer().is_open())
+    {
+        sock.lowest_layer().close();
+    }
+}

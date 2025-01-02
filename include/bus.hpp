@@ -17,22 +17,19 @@ namespace granada
             MAKE_SHARED_PTR(io_context);
 
         private:
-            io_contextPtr io_context_;
-            strand<io_context::executor_type> strand_;
             std::future<void> io_thread_;
             std::function<void(EventPtr)> handlerCallback_;
             std::vector<BusStopPtr> busStops_;
-            static void onTimeout(std::shared_ptr<asio::steady_timer> &, std::shared_ptr<io_context> &);
+            static void onTimeout(std::shared_ptr<asio::steady_timer> &);
+            static strand<io_context::executor_type> getStrand();
 
         public:
-            Bus();
             ~Bus();
             void setBusStop(std::function<void(EventPtr)>);
             void newBusStop(BusStopPtr &);
             void board(EventPtr &);
             void start();
-            io_context &getIOContext() const;
-            io_contextPtr &getIOContextPtr();
+            static io_contextPtr &getBusEngine();
         };
 
         MAKE_SHARED_PTR(Bus);

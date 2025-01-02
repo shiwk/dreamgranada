@@ -12,7 +12,7 @@ namespace granada
 
     void roles::Poster::asyncRequest3(http::RequestPtr & request, const http::ResponseHandler & respHandler, const http::ErrorHandler & errorHandler)
     {
-        auto &context = bus_.lock()->getIOContextPtr();
+        auto &context = events::Bus::getBusEngine();
         http::HttpClient3::asyncRequest(context, request, respHandler, errorHandler);
         LOG_INFO( "Request sent.");
     }
