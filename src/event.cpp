@@ -5,7 +5,7 @@ namespace granada
 {
     events::event_type events::CommonEvent::type()
     {
-        return 1;
+        return 0;
     }
 
     const std::string &events::CommonEvent::name() const
@@ -16,7 +16,7 @@ namespace granada
 
     events::event_type granada::events::DelayedEvent::type()
     {
-        return 2;
+        return 1;
     }
 
     const std::string &events::DelayedEvent::name() const

@@ -1,6 +1,7 @@
 
 
 #include "roles.hpp"
+#include "office.hpp"
 
 namespace granada
 {
@@ -15,5 +16,20 @@ namespace granada
         auto &context = events::Bus::getBusEngine();
         http::HttpClient3::asyncRequest(context, request, respHandler, errorHandler);
         LOG_INFO( "Request sent.");
+    }
+
+    void roles::GranadaRole::logIn(PublishCenterPtr publishCenter)
+    {
+        auto self = std::dynamic_pointer_cast<roles::GranadaRole> (shared_from_this());
+        publishCenter->subscribe(self);
+    }
+
+    roles::event_hit_map roles::GranadaRole::ehm() const{
+        return ehm_;
+    }
+
+    const ll roles::GranadaRole::id() const
+    {
+        return id_;
     }
 }

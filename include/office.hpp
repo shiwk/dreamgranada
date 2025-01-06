@@ -4,6 +4,7 @@
 #include "event.hpp"
 #include "bus.hpp"
 #include "roles.hpp"
+#include <set>
 
 namespace granada
 {
@@ -16,8 +17,10 @@ namespace granada
         void subscribe(roles::GranadaRolePtr role);
 
     private:
-        std::vector<roles::GranadaRolePtr> roles_;
+        std::unordered_map<ll, roles::GranadaRolePtr> roles_;
+        std::unordered_map<roles::event_hit_map, std::set<ll>> ehmToRole_;
     };
+    MAKE_SHARED_PTR(PublishCenter);
 };
 
 #endif
