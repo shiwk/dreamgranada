@@ -17,8 +17,8 @@ namespace granada
         void subscribe(roles::GranadaRolePtr role);
 
     private:
-        std::unordered_map<ll, roles::GranadaRolePtr> roles_;
-        std::unordered_map<roles::event_hit_map, std::set<ll>> ehmToRole_;
+        std::unordered_map<std::string, roles::GranadaRolePtr> roles_;
+        std::unordered_map<roles::EventHitMap, std::set<std::string>> ehmToRole_;
     };
     MAKE_SHARED_PTR(PublishCenter);
 };

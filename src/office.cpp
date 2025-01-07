@@ -21,7 +21,7 @@ namespace granada
     {
         LOG_INFO_FMT("Received event {} {}", event->name(), event->type());
         auto t = event->type();
-        if (ehmToRole_.find(t) != ehmToRole_.end())
+        if (ehmToRole_.find(t) == ehmToRole_.end())
         {
             return;
         }
@@ -39,13 +39,13 @@ namespace granada
     
     void PublishCenter::subscribe(roles::GranadaRolePtr role)
     {
-        LOG_INFO( "Subscribing role");
-        roles::event_hit_map ehm = role->ehm();
+        roles::EventHitMap ehm = role->ehm();
+        LOG_DEBUG_FMT( "Subscribing role id = {}, ehm = {}", role->id(), ehm);
         size_t pos = 0;
         
-        while (pos < EVENT_HIT_MAP_LENGTH)
+        while(ehm)
         {
-            if ((role->ehm() >> pos) & 0x01)
+            if (ehm & 0x01)
             {
                 if(ehmToRole_.find(pos) == ehmToRole_.end())
                 {
@@ -63,6 +63,7 @@ namespace granada
                     ehmToRole_[pos].erase(role->id());
                 }
             }
+            ehm = ehm >> 1;
             pos += 1;
         }
 

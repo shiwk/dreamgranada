@@ -24,11 +24,11 @@ namespace granada
         publishCenter->subscribe(self);
     }
 
-    roles::event_hit_map roles::GranadaRole::ehm() const{
+    roles::EventHitMap roles::GranadaRole::ehm() const{
         return ehm_;
     }
 
-    const ll roles::GranadaRole::id() const
+    const std::string roles::GranadaRole::id() const
     {
         return id_;
     }
