@@ -9,7 +9,7 @@ namespace granada
     PublishCenter::PublishCenter(events::BusPtr bus)
     {
         bus->setBusStop([this](const events::EventPtr &event)
-                                { onEvent(event); });
+                                { OnEvent(event); });
     }
 
     PublishCenter::~PublishCenter()
@@ -17,7 +17,7 @@ namespace granada
         LOG_INFO( "PublishCenter destroyed");
     }
 
-    void PublishCenter::onEvent(events::EventPtr event)
+    void PublishCenter::OnEvent(events::EventPtr event)
     {
         LOG_INFO_FMT("Received event {} {}", event->name(), event->type());
         auto t = event->type();
@@ -33,7 +33,7 @@ namespace granada
                 LOG_FATAL_FMT("role {} not subscribed", *iter);
             }
 
-            roles_[*iter]->onEvent(event);
+            roles_[*iter]->OnEvent(event);
         }        
     }
     

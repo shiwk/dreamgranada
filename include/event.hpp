@@ -49,7 +49,7 @@ namespace granada
         class BusStop
         {
         public:
-            virtual void onEvent(EventPtr) = 0;
+            virtual void OnEvent(EventPtr) = 0;
             virtual ~BusStop() {}
         };
 

@@ -31,7 +31,7 @@ namespace granada
         {
         public:
             GranadaRole(events::BusPtr bus, EventHitMap ehm, const uuid& id) : Poster(bus), ehm_(ehm), id_(id) {};
-            virtual void onEvent(events::EventPtr event) = 0;
+            virtual void OnEvent(events::EventPtr event) = 0;
             void logIn(std::shared_ptr<PublishCenter>);
             virtual const uuid id() const;
             virtual ~GranadaRole() {}
@@ -46,6 +46,7 @@ namespace granada
         private:
             EventHitMap ehm_;
             uuid id_;
+            virtual void HandleError(granada::events::event_type, const std::string& errorMsg) = 0;
         };
 
         MAKE_SHARED_PTR(GranadaRole);

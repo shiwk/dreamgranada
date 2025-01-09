@@ -13,7 +13,7 @@ namespace granada
     public:
         PublishCenter(events::BusPtr);
         virtual ~PublishCenter();
-        virtual void onEvent(events::EventPtr) override;
+        virtual void OnEvent(events::EventPtr) override;
         void subscribe(roles::GranadaRolePtr role);
 
     private:
