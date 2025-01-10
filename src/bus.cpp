@@ -61,7 +61,7 @@ namespace granada
             return strand;
         }
 
-        void Bus::board(EventPtr &event)
+        void Bus::board(EventPtr event)
         {
             if (event->delay() > 0)
             {
@@ -70,7 +70,7 @@ namespace granada
                 {
                     std::shared_ptr<asio::steady_timer> timer = std::make_shared<asio::steady_timer>(*getBusEngine(), std::chrono::seconds(event->delay()));
                     timer->async_wait(asio::bind_executor(getStrand(), [timer, stop, event](const boost::system::error_code &ec)
-                                                        { stop->OnEvent(event); }));
+                                                        { stop->onEvent(event); }));
                 }
                 
             }
@@ -79,7 +79,7 @@ namespace granada
                 LOG_DEBUG_FMT("new event: {}", event->name());
                 for (auto &stop : busStops_)
                 {
-                    asio::post(getStrand(), [stop, event]() { stop->OnEvent(event); });
+                    asio::post(getStrand(), [stop, event]() { stop->onEvent(event); });
                 }
             }
         }

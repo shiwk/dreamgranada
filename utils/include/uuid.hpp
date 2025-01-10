@@ -1,10 +1,7 @@
 #ifndef UUID_HPP
 #define UUID_HPP
 
-#include <atomic>
-#include <chrono>
-#include <sstream>
-#include <iomanip>
+
 #include <string>
 #include <mutex>
 #include "common.hpp"
@@ -18,10 +15,10 @@ namespace granada
         int counter_;
         ll lastTs_;
         std::mutex mutex_;
-        static uint64_t getCurrentTimestamp();
 
     public:
-        std::string gen(const std::string &prefix);
+        
+        uuid gen(const std::string &prefix, const uint64_t ts=0);
         static GranadaUID &instance();
     };
 }    

@@ -27,7 +27,7 @@ namespace granada
             ~Bus();
             void setBusStop(std::function<void(EventPtr)>);
             void newBusStop(BusStopPtr &);
-            void board(EventPtr &);
+            void board(EventPtr);
             void start();
             static io_contextPtr &getBusEngine();
         };

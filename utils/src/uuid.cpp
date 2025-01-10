@@ -1,18 +1,18 @@
 #include "uuid.hpp"
+#include "ts.hpp"
+#include <sstream>
+#include <iomanip>
 
 using namespace granada;
 
-uint64_t GranadaUID::getCurrentTimestamp()
-{
-    using namespace std::chrono;
-    auto now = system_clock::now();
-    auto duration = now.time_since_epoch();
-    return duration_cast<milliseconds>(duration).count();
-}
 
-std::string GranadaUID::gen(const std::string &prefix)
+uuid GranadaUID::gen(const std::string &prefix, const uint64_t ts)
 {
-    uint64_t timestamp = getCurrentTimestamp();
+    uint64_t timestamp = ts;
+    if (timestamp == 0)
+    {
+        timestamp = GranadaTimestamp::getCurrentTimestamp();
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     if (timestamp != lastTs_)
     {
@@ -31,7 +31,7 @@ std::string GranadaUID::gen(const std::string &prefix)
     ss << std::setw(8) << std::setfill('0') << std::hex << timestamp
        << std::setw(4) << std::setfill('0') << std::hex << (currentCounter & 0xFFFF);
 
-    return ss.str();
+    return std::move(ss.str());
 }
 
 GranadaUID &GranadaUID::instance()
