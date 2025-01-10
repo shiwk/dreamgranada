@@ -14,11 +14,10 @@ namespace granada
         PublishCenter(events::BusPtr);
         virtual ~PublishCenter();
         virtual void onEvent(events::EventPtr) override;
-        void subscribe(roles::GranadaRolePtr role);
+        void subscribe(roles::SubscriberPtr role);
 
     private:
-        std::unordered_map<std::string, roles::GranadaRolePtr> roles_;
-        std::unordered_map<roles::EventHitMap, std::set<std::string>> ehmToRole_;
+        std::vector<roles::SubscriberPtr> subscribers_;
     };
     MAKE_SHARED_PTR(PublishCenter);
 };

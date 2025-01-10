@@ -18,13 +18,13 @@ namespace granada
         LOG_INFO( "Request sent.");
     }
 
-    void roles::GranadaRole::logIn(PublishCenterPtr publishCenter)
+    void roles::Subscriber::logIn(PublishCenterPtr publishCenter)
     {
-        auto self = std::dynamic_pointer_cast<roles::GranadaRole> (shared_from_this());
+        auto self = std::dynamic_pointer_cast<roles::Subscriber> (shared_from_this());
         publishCenter->subscribe(self);
     }
 
-    roles::EventHitMap roles::GranadaRole::ehm() const{
+    roles::EventHitMap roles::Subscriber::ehm() const{
         return ehm_;
     }
 

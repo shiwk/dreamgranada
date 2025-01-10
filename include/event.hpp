@@ -3,47 +3,68 @@
 
 #include "common.hpp"
 #include <chrono>
+#include "uuid.hpp"
+#include "ts.hpp"
+#include <climits>
 
 using namespace std::chrono;
+#define EVENT_ID_PREFIX "E"
 
 namespace granada
 {
     namespace events
     {
-        using event_type = unsigned int;
+        using event_desc = unsigned long long;
+        using delay_t = uint8_t;
+        using active_t = uint8_t;
+        using bitcout_t = uint8_t;
 
         class Event
         {
-        public:
-            Event(ll delay) : delay_(delay), ts_(system_clock::now()) {}
-            virtual event_type type() = 0;
-            virtual const std::string &name() const = 0;
-            virtual ~Event() {}
-            const ll delay() const;
-            const time_point<system_clock> &ts() const;
-
         private:
-            ll delay_;
-            time_point<system_clock> ts_;
+            uint64_t ts_;
+            uuid poster_;
+            event_desc desc_;
+
+            static event_desc sysInfo(delay_t delay, active_t period);
+            static event_desc concatenate(event_desc sys, event_desc usr);
+
+        public:
+            Event(const uuid &poster, delay_t delay, active_t period, event_desc usr)
+                : desc_(concatenate(sysInfo(delay, period), usr)),
+                  ts_(GranadaTimestamp::getCurrentTimestamp()),
+                  poster_(poster) {}
+
+            virtual ~Event() {}
+            event_desc desc() const;
+            event_desc usrDesc() const;
+            event_desc sysDesc() const;
+            const delay_t delay() const;
+            const active_t active() const;
+            const uint64_t ts() const;
+            virtual const std::string &name() const = 0;
         };
         MAKE_SHARED_PTR(Event);
 
         class CommonEvent : public Event
         {
         public:
-            CommonEvent() : Event(0) {}
-            virtual events::event_type type() override;
-            virtual const std::string &name() const override;
+            CommonEvent(const uuid &poster, event_desc usr = 0) : Event(poster, 0, 0xFF, usr) {}
             virtual ~CommonEvent() {}
         };
 
         class DelayedEvent : public Event
         {
         public:
-            DelayedEvent(ll delay) : Event(delay) {}
-            virtual events::event_type type() override;
-            virtual const std::string &name() const override;
+            DelayedEvent(const uuid &poster, delay_t delay, event_desc usr = 0) : Event(poster, delay, 0xFF, usr) {}
             virtual ~DelayedEvent() {}
+        };
+
+        class ActiveEvent : public Event
+        {
+        public:
+            ActiveEvent(const uuid &poster, active_t active, event_desc usr = 0) : Event(poster, 0, active, usr) {}
+            virtual ~ActiveEvent() {}
         };
 
         class BusStop

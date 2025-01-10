@@ -61,7 +61,7 @@ namespace granada
             return strand;
         }
 
-        void Bus::board(EventPtr &event)
+        void Bus::board(EventPtr event)
         {
             if (event->delay() > 0)
             {
