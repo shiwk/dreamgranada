@@ -27,13 +27,9 @@ namespace granada
 
         for (auto & subscriber : subscribers_)
         {
-            roles::EventHitMap ehm = subscriber->ehm();
-            events::bitcout_t bitcount = static_cast<events::bitcout_t>(ehm & 0XFF);
-            auto mask = (1 << bitcount) - 1;
-            auto bits = ehm >> 8;
-            if ((desc & mask) == (bits & mask))
+            if (roles::Subscriber::hit(subscriber->ehm(), desc))
             {
-                 subscriber->onEvent(event);
+                subscriber->onEvent(event);
             }
         }
     }

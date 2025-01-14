@@ -44,6 +44,9 @@ namespace granada
 
         class Subscriber : public GranadaRole
         {
+        private:
+            EventHitMap ehm_;
+
         public:
             Subscriber(events::BusPtr bus, const uuid &id, EventHitMap ehm) : GranadaRole(bus, id), ehm_(ehm) {}
             virtual void onEvent(events::EventPtr event) = 0;
@@ -63,8 +66,13 @@ namespace granada
                 return std::make_shared<T>(bus, uuid_gen.gen(prefix));
             }
 
-        private:
-            EventHitMap ehm_;
+            inline static bool hit(EventHitMap ehm, events::event_desc usr_desc)
+            {
+                events::bitcout_t bitcount = static_cast<events::bitcout_t>(ehm & 0XFF);
+                auto mask = (1 << bitcount) - 1;
+                auto bitMap = ehm >> 8;
+                return bitMap != 0  && (usr_desc & mask) == (bitMap & mask);
+            }
         };
         MAKE_SHARED_PTR(Subscriber);
 
