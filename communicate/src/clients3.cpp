@@ -92,10 +92,12 @@ void HttpClient3::onReadStatusLine(const error_code &error, const std::size_t re
     // copy and remove characters from the resp buf
     auto &buffer = context->respBuff;
     StatusLine statueLine(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + read_size);
-    context->respStatusLine = std::move(statueLine);
-    LOG_DEBUG_FMT("Status line: {}", context->respStatusLine);
+    // context->respStatusLine = std::move(statueLine);
+    // LOG_DEBUG_FMT("Status line: {}", context->respStatusLine);
     LOG_DEBUG_FMT("buffer size: len({})", buffer.size());
     buffer.consume(read_size);
+
+    HttpContext::parseStatusLine(statueLine, context->response);
 
     // read the response headers
     asio::async_read_until(context->sock, buffer, "\r\n\r\n",
@@ -121,40 +123,101 @@ void HttpClient3::onReadHeaders(const error_code &error, const std::size_t read_
     while (std::getline(response_stream, headerLine) && headerLine != "\r")
     {
         LOG_DEBUG_FMT("Header line: {}", headerLine);
-        context->addRespHeaderLine(headerLine);
+        HttpContext::parseHeaderLine(headerLine, context->response->headers);
     }
+
     LOG_DEBUG_FMT("read header: len({})", read_size);
     LOG_DEBUG_FMT("buffer size: len({})", buffer.size());
 
-    asio::async_read(context->sock, buffer, boost::asio::transfer_at_least(1),
-                     [context](const error_code &err, std::size_t size)
-                     {
-                         onReadBody(err, size, context);
-                     });
+    if (context->response->chunked())
+    {
+        readChunkSize(context);
+    }
+    else
+    {
+        asio::async_read(context->sock, buffer, boost::asio::transfer_at_least(1),
+                         [context](const error_code &err, std::size_t size)
+                         {
+                             onReadIdentityBody(err, size, context);
+                         });
+    }
 }
 
-void HttpClient3::onReadBody(const error_code &error, const std::size_t read_size, const HttpContextPtr &context)
+void HttpClient3::onReadIdentityBody(const error_code &error, const std::size_t read_size, const HttpContextPtr &context)
 {
     if (error && error != asio::error::eof)
     {
         LOG_ERROR_FMT("Read body error: {}", error.message());
         context->complete(error);
+        return;
     }
 
     auto &buffer = context->respBuff;
     RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
     buffer.consume(buffer.size());
-    context->respBody.append(body);
+    LOG_DEBUG_FMT("RespBody: {}", body);
+    context->response->content.append(body);
 
     if (!error)
     {
         return asio::async_read(context->sock, buffer, boost::asio::transfer_at_least(1),
                                 [context](const error_code &err, std::size_t size)
                                 {
-                                    onReadBody(err, size, context);
+                                    onReadIdentityBody(err, size, context);
                                 });
     }
 
     LOG_INFO("Read response done");
     context->complete(asio::error::eof);
+}
+
+void HttpClient3::readChunkSize(HttpContextPtr context)
+{
+    auto &buffer = context->respBuff;
+    asio::async_read_until(context->sock, buffer, "\r\n",
+                           [context](const error_code &error, std::size_t read_size)
+                           {
+                               if (error && error != asio::error::eof)
+                               {
+                                   LOG_ERROR_FMT("Read body error: {}", error.message());
+                                   return context->complete(error);
+                               }
+
+                               auto &buffer = context->respBuff;
+                               RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + read_size);
+                               buffer.consume(read_size);
+                               size_t chunk_size = std::stoul(body, nullptr, 16);
+                               LOG_DEBUG_FMT("Read chunk size: {}", chunk_size);
+
+                               if (chunk_size == 0)
+                               {
+                                   LOG_INFO("Read chunk to end.");
+                                   return context->complete(asio::error::eof);
+                               }
+
+                               readChunkBody(chunk_size, context);
+                           });
+}
+
+void HttpClient3::readChunkBody(const std::size_t chunk_size, HttpContextPtr context)
+{
+    auto &buffer = context->respBuff;
+    size_t to_read_size = chunk_size + 2; // content + "\r\n"
+    asio::async_read(context->sock, buffer, asio::transfer_at_least(to_read_size),
+                     [context, chunk_size](const error_code &error, std::size_t read_size)
+                     {
+                         if (error && error != asio::error::eof)
+                         {
+                             LOG_ERROR_FMT("Read body error: {}", error.message());
+                             return context->complete(error);
+                         }
+                         auto &buffer = context->respBuff;
+                         RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + chunk_size);
+                         LOG_DEBUG_FMT("read chunk: {}", body);
+
+                         buffer.consume(chunk_size + 2);
+
+                         context->response->content.append(body);
+                         readChunkSize(context);
+                     });
 }

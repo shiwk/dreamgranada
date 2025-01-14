@@ -21,7 +21,9 @@ namespace granada
             static void onWrite(const error_code &error, std::size_t bytes_transferred, const HttpContextPtr&);
             static void onReadStatusLine(const error_code &error, const std::size_t size, const HttpContextPtr&);
             static void onReadHeaders(const error_code &error, const std::size_t size, const HttpContextPtr&);
-            static void onReadBody(const error_code &error, const std::size_t size, const HttpContextPtr&);
+            static void onReadIdentityBody(const error_code &error, const std::size_t size, const HttpContextPtr&);
+            static void readChunkSize(HttpContextPtr context);
+            static void readChunkBody(const std::size_t chunk_size, HttpContextPtr);
 
         public:
             static void asyncRequest(io_contextPtr&, RequestPtr &, const ResponseHandler &, const ErrorHandler &);
