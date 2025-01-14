@@ -87,10 +87,6 @@ void HttpContext::prepareRequest(const RequestPtr &request)
     }
 }
 
-void HttpContext::addRespHeaderLine(const std::string &line)
-{
-    respHeaders.push_back(line);
-}
 
 void HttpContext::complete(const error_code &error)
 {
@@ -101,42 +97,15 @@ void HttpContext::complete(const error_code &error)
         return;
     }
 
-    ResponsePtr resp = std::make_shared<Response>();
-    bool success = getResponse(resp);
-    if (!success)
-    {
-        LOG_ERROR("Failed to parse response");
-        errorHandler(error);
-        return;
-    }
-
-    respHandler(error, resp);
+    respHandler(error, response);
 }
 
-bool HttpContext::getResponse(ResponsePtr &resp)
-{
-    bool parseResult = false;
-    parseResult = parseStatusLine(respStatusLine, *resp);
-    if (!parseResult)
-    {
-        LOG_ERROR("Failed to parse status line");
-        return false;
-    }
-    parseResult = parseHeaders(respHeaders, resp->headers);
-    if (!parseResult)
-    {
-        LOG_ERROR("Failed to parse headers");
-        return false;
-    }
 
-    resp->content = std::move(respBody);
-    return true;
-}
 
-bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatus &resp)
+bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatusPtr resp)
 {
     std::vector<std::string> tokens;
-    split(line, ' ', tokens);
+    HttpContextUtil::split(line, ' ', tokens);
 
     if (tokens.size() < 3)
     {
@@ -149,15 +118,15 @@ bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatus &resp)
     }
     std::istringstream stream(line);
 
-    stream >> resp.version;
+    stream >> resp->version;
 
-    stream >> resp.statusCode;
+    stream >> resp->statusCode;
 
-    std::getline(stream, resp.statusMessage);
+    std::getline(stream, resp->statusMessage);
 
-    if (!resp.statusMessage.empty() && resp.statusMessage[0] == ' ')
+    if (!resp->statusMessage.empty() && resp->statusMessage[0] == ' ')
     {
-        resp.statusMessage.erase(0, 1);
+        resp->statusMessage.erase(0, 1);
     }
     return true;
 }
@@ -166,25 +135,34 @@ bool HttpContext::parseHeaders(const std::vector<HeaderLine> &lines, RespHeaders
 {
     for (const auto &line : lines)
     {
-        size_t pos = line.find(':');
-        if (pos == std::string::npos)
+        if (!parseHeaderLine(line, headers))
         {
-            LOG_ERROR_FMT("Invalid header line: {}", line);
             return false;
         }
-
-        std::string key = std::move(line.substr(0, pos));
-
-        key = key.substr(key.find_last_not_of(" \t\n"), key.find_last_not_of(" \t\n") - key.find_first_not_of(" \t\n") + 1);
-        std::string value = std::move(line.substr(pos + 1));
-        value = value.substr(key.find_last_not_of(" \t\n"), value.find_last_not_of(" \t\n") - value.find_first_not_of(" \t\n") + 1);
-        headers[key] = value;
     }
 
     return true;
 }
 
-void HttpContext::split(const std::string &s, const char delimiter, std::vector<std::string> &tokens)
+bool granada::http::HttpContext::parseHeaderLine(const HeaderLine &line, RespHeaders &headers)
+{
+    size_t pos = line.find(':');
+    if (pos == std::string::npos)
+    {
+        LOG_ERROR_FMT("Invalid header line: {}", line);
+        return false;
+    }
+
+
+    std::string key = HttpContextUtil::strip(std::move(line.substr(0, pos)));
+    std::string value = HttpContextUtil::strip(line.substr(pos + 1));
+    headers[key] = value;
+    LOG_DEBUG_FMT("header {}:{}", key, value);
+
+    return true;
+}
+
+void HttpContextUtil::split(const std::string &s, const char delimiter, std::vector<std::string> &tokens)
 {
     std::string token;
     std::istringstream tokenStream(s);
@@ -193,6 +171,14 @@ void HttpContext::split(const std::string &s, const char delimiter, std::vector<
     {
         tokens.push_back(token);
     }
+}
+
+std::string granada::http::HttpContextUtil::strip(const std::string &str)
+{
+    auto start = std::find_if_not(str.begin(), str.end(), ::isspace);
+    auto end = std::find_if_not(str.rbegin(), str.rend(), ::isspace).base();
+
+    return (start < end) ? std::move(std::string(start, end)) : "";
 }
 
 void granada::http::HttpContext::dumpRequest(RequestPtr request)

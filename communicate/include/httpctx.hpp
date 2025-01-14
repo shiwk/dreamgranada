@@ -12,6 +12,8 @@
 
 #define HTTP "http"
 #define HTTPS "https"
+#define CHUNKED "chunked"
+#define TRANSFER_ENCODING "Transfer-Encoding"
 
 using namespace boost::asio;
 namespace asio = boost::asio;
@@ -41,7 +43,6 @@ namespace granada
             std::string path;
             std::string host;
             std::string connection;
-            // size_t contentLength = 0;
             std::string user_agent;
             std::string body;
             std::unordered_map<std::string, std::string> headers;
@@ -66,12 +67,17 @@ namespace granada
             HttpStatus statusCode;
             std::string statusMessage;
         };
+        MAKE_SHARED_PTR(ResponseStatus);
 
         struct Response : ResponseStatus
         {
             Response() : ResponseStatus(0) {};
             RespHeaders headers;
             RespBody content;
+            bool chunked()
+            {
+                return headers.find(TRANSFER_ENCODING) != headers.end() && headers[TRANSFER_ENCODING] == CHUNKED;
+            }
         };
 
         MAKE_SHARED_PTR(Response);
@@ -79,6 +85,13 @@ namespace granada
         using ResponseHandler = std::function<void(const error_code &, ResponsePtr &)>;
         using HeaderLine = std::string;
         using StatusLine = std::string;
+
+        struct HttpContextUtil
+        {
+            static void split(const std::string &, const char, std::vector<std::string> &);
+            static std::string strip(const std::string& str);
+        };
+
         struct HttpContext : std::enable_shared_from_this<HttpContext>
         {
         private:
@@ -89,7 +102,7 @@ namespace granada
 
         public:
             HttpContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
-                : io_context_(io_context), sock(*io_context, getSSLCtx()), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler)
+                : io_context_(io_context), sock(*io_context, getSSLCtx()), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler), response(std::make_shared<Response>())
                 {
                     prepareRequest(request);
                 }
@@ -97,26 +110,23 @@ namespace granada
             HttpContext(const HttpContext &) = delete;
             ~HttpContext();
             HttpContext &operator=(const HttpContext &) = delete;
-            void addRespHeaderLine(const std::string &);
             void complete(const error_code &);
             void handleError(const error_code &);
-            Response getResponse();
             static ssl::context &getSSLCtx();
 
             asio::streambuf reqBuff;
             asio::streambuf respBuff;
-            std::vector<HeaderLine> respHeaders;
-            RespBody respBody;
+            ResponsePtr response;
             ssl::stream<tcp::socket> sock;
             ResponseHandler respHandler;
             ErrorHandler errorHandler;
             StatusLine respStatusLine;
 
+            static bool parseHeaderLine(const HeaderLine &, RespHeaders &);
+            static bool parseStatusLine(const StatusLine &, ResponseStatusPtr);
         private:
-            bool getResponse(ResponsePtr &);
-            static bool parseStatusLine(const StatusLine &, ResponseStatus &);
+            // bool getResponse(ResponsePtr &);
             static bool parseHeaders(const std::vector<HeaderLine> &, RespHeaders &);
-            static void split(const std::string &, const char, std::vector<std::string> &);
             void dumpRequest(RequestPtr request);
         };
 

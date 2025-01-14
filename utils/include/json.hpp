@@ -24,6 +24,7 @@ namespace granada
         std::shared_ptr<JsonValue> get(size_t i);
 
         bool isArray();
+        bool isObj();
 
         size_t size();
 

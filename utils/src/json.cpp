@@ -71,6 +71,12 @@ namespace granada
     {
         return value_.IsArray();
     }
+
+    bool JsonValue::isObj()
+    {
+        return value_.IsObject();
+    }
+
     size_t JsonValue::size()
     {
         return value_.Size();
