@@ -8,18 +8,34 @@
 
 namespace granada
 {
-    class PublishCenter : public events::BusStop
+    const events::event_desc OFFICE_EVENT_MASK= 0x8;
+    
+    enum OfficeEventDesc
+    {
+        NewSubscriber =  OFFICE_EVENT_MASK | 0x1
+    };
+
+    struct NewSubscriberLoginEvent : public events::CommonEvent
+    {
+        NewSubscriberLoginEvent(const uuid &poster, roles::SubscriberPtr subscriber) : events::CommonEvent(poster, OfficeEventDesc::NewSubscriber), subscriber_(subscriber) {}
+        roles::SubscriberPtr subscriber_;
+        virtual const std::string &name() const override;
+    };
+
+    MAKE_SHARED_PTR(NewSubscriberLoginEvent);
+
+    class OfficeCenter : public events::BusStop
     {
     public:
-        PublishCenter(events::BusPtr);
-        virtual ~PublishCenter();
+        OfficeCenter(events::BusPtr);
+        virtual ~OfficeCenter();
         virtual void onEvent(events::EventPtr) override;
-        void subscribe(roles::SubscriberPtr role);
 
     private:
+        void onSubscribe(NewSubscriberLoginEventPtr);
         std::vector<roles::SubscriberPtr> subscribers_;
     };
-    MAKE_SHARED_PTR(PublishCenter);
+    MAKE_SHARED_PTR(OfficeCenter);
 };
 
 #endif
