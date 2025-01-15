@@ -5,13 +5,14 @@
 #include "clients3.hpp"
 #include "logger.hpp"
 #include "uuid.hpp"
+#include "event.hpp"
 
 #define EVENT_HIT_MAP_LENGTH 32
 
 namespace http = granada::http;
 namespace granada
 {
-    class PublishCenter;
+    class OfficeCenter;
     namespace roles
     {
         class Poster : public std::enable_shared_from_this<Poster>
@@ -50,7 +51,7 @@ namespace granada
         public:
             Subscriber(events::BusPtr bus, const uuid &id, EventHitMap ehm) : GranadaRole(bus, id), ehm_(ehm) {}
             virtual void onEvent(events::EventPtr event) = 0;
-            void logIn(std::shared_ptr<PublishCenter>);
+            void logIn();
             EventHitMap ehm() const;
             template <class T>
             static std::shared_ptr<T> instance(events::BusPtr bus, const std::string &prefix, EventHitMap ehm)
@@ -68,14 +69,14 @@ namespace granada
 
             inline static bool hit(EventHitMap ehm, events::event_desc usr_desc)
             {
-                events::bitcout_t bitcount = static_cast<events::bitcout_t>(ehm & 0XFF);
-                auto mask = (1 << bitcount) - 1;
-                auto bitMap = ehm >> 8;
-                return bitMap != 0  && (usr_desc & mask) == (bitMap & mask);
+                // events::bitcout_t bitcount = static_cast<events::bitcout_t>(ehm & 0XFF);
+                // auto mask = (1 << bitcount) - 1;
+                // auto bitMap = ehm >> 8;
+                // return bitMap != 0  && (usr_desc & mask) == (bitMap & mask);
+                return ehm != 0  && (usr_desc & ehm) == ehm;
             }
         };
         MAKE_SHARED_PTR(Subscriber);
-
     }
 }
 

@@ -6,26 +6,32 @@
 #include <util.hpp>
 
 using namespace granada::events;
-
+#define OFFICE_SUBSCRIBER "OFFICE_SUBSCRIBER"
 namespace granada
 {
-    PublishCenter::PublishCenter(events::BusPtr bus)
+    OfficeCenter::OfficeCenter(events::BusPtr bus)
     {
         bus->setBusStop([this](const events::EventPtr &event)
                         { onEvent(event); });
     }
 
-    PublishCenter::~PublishCenter()
+    OfficeCenter::~OfficeCenter()
     {
         LOG_INFO("PublishCenter destroyed");
     }
 
-    void PublishCenter::onEvent(events::EventPtr event)
+    void OfficeCenter::onEvent(events::EventPtr event)
     {
         LOG_DEBUG_FMT("Received event {} {}", event->name(), utils::Format::dumpB(event->desc()));
+        
         event_desc desc = event->usrDesc();
 
-        for (auto & subscriber : subscribers_)
+        if (roles::Subscriber::hit(OfficeEventDesc::NewSubscriber, desc))
+        {
+            onSubscribe(std::static_pointer_cast<NewSubscriberLoginEvent>(event));
+        }
+
+        for (auto &subscriber : subscribers_)
         {
             if (roles::Subscriber::hit(subscriber->ehm(), desc))
             {
@@ -34,9 +40,15 @@ namespace granada
         }
     }
 
-    void PublishCenter::subscribe(roles::SubscriberPtr subscriber)
+    void OfficeCenter::onSubscribe(NewSubscriberLoginEventPtr event)
     {
-        LOG_DEBUG_FMT("Subscribing role id = {}, ehm = {}", subscriber->id(), utils::Format::dumpB(subscriber->ehm()));
-        subscribers_.emplace_back(subscriber);
+        LOG_DEBUG_FMT("Subscribing role id = {}, ehm = {}", event->subscriber_->id(), utils::Format::dumpB(event->subscriber_->ehm()));
+        subscribers_.emplace_back(event->subscriber_);
+    }
+    
+    const std::string &NewSubscriberLoginEvent::name() const
+    {
+        static const std::string OFFICESUBSCRIBER = OFFICE_SUBSCRIBER;
+        return OFFICESUBSCRIBER;
     }
 }
