@@ -7,3 +7,6 @@
 [submodule "3rd_party/rapidjson"]
 	path = 3rd_party/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "3rd_party/gumbo"]
+	path = 3rd_party/gumbo
+	url = https://github.com/shiwk/gumbo-parser.git
