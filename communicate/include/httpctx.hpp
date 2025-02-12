@@ -47,6 +47,7 @@ namespace granada
             std::string body;
             std::unordered_map<std::string, std::string> headers;
             std::unordered_map<std::string, std::string> queries;
+            int8_t timeout = 10;
 
             Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent = "granada_client", const std::string &connection = "close", const std::string &body = "", const bool https = true);
             void addHeader(const std::string &, const std::string &value);
@@ -96,13 +97,17 @@ namespace granada
         {
         private:
             io_contextPtr io_context_;
+            int8_t timeout_;
             void prepareRequest(const RequestPtr &);
             void writeQueryStream(std::unordered_map<std::string, std::string> &, std::ostream &);
             void writeResqHeaders(std::unordered_map<std::string, std::string> &, std::ostream &);
+            void cleanUp();
+            // asio::steady_timer contextTimer_;
 
         public:
             HttpContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
-                : io_context_(io_context), sock(*io_context, getSSLCtx()), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler), response(std::make_shared<Response>())
+                : io_context_(io_context), timeout_(request->timeout), sock(*io_context, getSSLCtx()), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler), response(std::make_shared<Response>())
+                // , contextTimer_(*io_context, std::chrono::seconds(10))
                 {
                     prepareRequest(request);
                 }
@@ -124,6 +129,8 @@ namespace granada
 
             static bool parseHeaderLine(const HeaderLine &, RespHeaders &);
             static bool parseStatusLine(const StatusLine &, ResponseStatusPtr);
+            // static void startTimer(std::shared_ptr<HttpContext>);
+            std::shared_ptr<asio::steady_timer> getTimer();
         private:
             // bool getResponse(ResponsePtr &);
             static bool parseHeaders(const std::vector<HeaderLine> &, RespHeaders &);
