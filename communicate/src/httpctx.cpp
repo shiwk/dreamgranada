@@ -87,20 +87,19 @@ void HttpContext::prepareRequest(const RequestPtr &request)
     }
 }
 
-
 void HttpContext::complete(const error_code &error)
 {
     if (error != boost::asio::error::eof)
     {
-        LOG_ERROR("Read body error");
+        LOG_ERROR("Httpctx error occured.");
         errorHandler(error);
+        cleanUp();
         return;
     }
 
     respHandler(error, response);
+    cleanUp();
 }
-
-
 
 bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatusPtr resp)
 {
@@ -131,6 +130,22 @@ bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatusPtr resp
     return true;
 }
 
+std::shared_ptr<asio::steady_timer> granada::http::HttpContext::getTimer()
+{
+    std::shared_ptr<asio::steady_timer> ctxTimer = std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(timeout_));
+    auto ctx = shared_from_this();
+    ctxTimer->async_wait([ctx, ctxTimer](const error_code &ec)
+                                          {
+                                            if (!ec)
+                                            {
+                                                LOG_ERROR_FMT("httpctx timeout. {}, timeout: {}", ec.message(), ctx->timeout_);
+                                                ctx->cleanUp();
+                                            }
+                                            ctxTimer->cancel();
+                                        });
+    return ctxTimer;
+}
+
 bool HttpContext::parseHeaders(const std::vector<HeaderLine> &lines, RespHeaders &headers)
 {
     for (const auto &line : lines)
@@ -153,11 +168,10 @@ bool granada::http::HttpContext::parseHeaderLine(const HeaderLine &line, RespHea
         return false;
     }
 
-
     std::string key = HttpContextUtil::strip(std::move(line.substr(0, pos)));
     std::string value = HttpContextUtil::strip(line.substr(pos + 1));
     headers[key] = value;
-    LOG_DEBUG_FMT("header {}:{}", key, value);
+    // LOG_DEBUG_FMT("header {}:{}", key, value);
 
     return true;
 }
@@ -191,12 +205,19 @@ void granada::http::HttpContext::dumpRequest(RequestPtr request)
     is.seekg(0);
 }
 
-
 HttpContext::~HttpContext()
 {
-    LOG_DEBUG("HttpContext destroyed");
+    // cleanUp();
+    LOG_DEBUG("HttpContext destroyed.");
+}
+
+void HttpContext::cleanUp()
+{
     if (sock.lowest_layer().is_open())
     {
+        error_code error;
+        error = sock.shutdown(error);
+        LOG_DEBUG_FMT("tcp::socket shutdown: {}", error.message());
         sock.lowest_layer().close();
     }
 }
