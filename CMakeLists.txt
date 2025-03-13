@@ -10,6 +10,8 @@ set(GRANADA_3RD_PARTY ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party)
 
 add_subdirectory(3rd_party/glog glog)
 add_subdirectory(3rd_party/fmt)
+add_subdirectory(3rd_party/gumbo)
+
 add_subdirectory(communicate)
 add_subdirectory(utils)
 

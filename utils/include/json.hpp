@@ -14,7 +14,7 @@ namespace granada
         JsonValue(const rapidjson::Value &value) : value_(value) {}
         ~JsonValue()
         {
-            LOG_DEBUG("JsonValue destroyed");
+            // LOG_DEBUG("JsonValue destroyed");
         }
         std::shared_ptr<JsonValue> get(const char *field);
 
@@ -25,6 +25,7 @@ namespace granada
 
         bool isArray();
         bool isObj();
+        bool has(const std::string&);
 
         size_t size();
 
@@ -44,7 +45,7 @@ namespace granada
         unsigned int getError();
         ~Json()
         {
-            LOG_DEBUG("Json destroyed");
+            // LOG_DEBUG("Json destroyed");
         }
 
         JsonValuePtr get(const char *field);

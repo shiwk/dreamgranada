@@ -77,6 +77,11 @@ namespace granada
         return value_.IsObject();
     }
 
+    bool JsonValue::has(const std::string& member)
+    {
+        return value_.HasMember(member.c_str());
+    }
+
     size_t JsonValue::size()
     {
         return value_.Size();
@@ -91,6 +96,12 @@ namespace granada
     int JsonValue::get()
     {
         return value_.Get<int>();
+    }
+
+    template <>
+    uint64_t JsonValue::get()
+    {
+        return value_.Get<uint64_t>();
     }
 
     template <>
@@ -109,6 +120,12 @@ namespace granada
     std::string JsonValue::get()
     {
         return value_.GetString();
+    }
+
+    template <>
+    bool JsonValue::get()
+    {
+        return value_.GetBool();
     }
 
     std::shared_ptr<JsonValue> JsonValue::get(size_t i)
