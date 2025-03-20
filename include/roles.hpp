@@ -15,6 +15,7 @@ namespace granada
     class OfficeCenter;
     namespace roles
     {
+        const events::event_desc ROLE_MASK = 0xFFFF;
         class Poster : public std::enable_shared_from_this<Poster>
         {
         public:
@@ -73,7 +74,7 @@ namespace granada
                 // auto mask = (1 << bitcount) - 1;
                 // auto bitMap = ehm >> 8;
                 // return bitMap != 0  && (usr_desc & mask) == (bitMap & mask);
-                return ehm != 0  && (usr_desc & ehm) == ehm;
+                return ehm != 0  && (usr_desc & ROLE_MASK) == ehm;
             }
         };
         MAKE_SHARED_PTR(Subscriber);
