@@ -8,11 +8,11 @@
 
 namespace granada
 {
-    const events::event_desc OFFICE_EVENT_MASK= 0x8;
+    const events::event_desc OFFICE_EVENT_MASK= 0xF;
     
     enum OfficeEventDesc
     {
-        NewSubscriber =  OFFICE_EVENT_MASK | 0x1
+        NewSubscriber =  OFFICE_EVENT_MASK
     };
 
     struct NewSubscriberLoginEvent : public events::CommonEvent

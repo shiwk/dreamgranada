@@ -14,7 +14,7 @@ namespace granada
 {
     namespace events
     {
-        using event_desc = unsigned long long;
+        using event_desc = int64_t;
         using delay_t = uint8_t;
         using active_t = uint8_t;
         using bitcout_t = uint8_t;

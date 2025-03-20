@@ -24,7 +24,7 @@ namespace granada
             template <class T>
             static inline std::string dumpB(T t)
             {
-                std::string binaryString = std::bitset<32>(t).to_string();
+                std::string binaryString = std::bitset<64>(t).to_string();
                 return std::move("0B" + binaryString);
             }
         };
