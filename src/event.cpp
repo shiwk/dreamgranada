@@ -44,7 +44,7 @@ event_desc granada::events::Event::sysInfo(delay_t delay, active_t active)
 {
     /*
          |high bits for usr ########################################     low bits for system|
-         |#####################################################|active(8)|delay(8)|syslen(6)|
+         |#####################################################|active(8)|delay(16)|syslen(6)|
 
          delay: delay in second before post
          active: event validity period
@@ -54,7 +54,7 @@ event_desc granada::events::Event::sysInfo(delay_t delay, active_t active)
     desc = desc << sizeof(delay_t) * 8;
     desc = desc | delay;
     desc = desc << EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;                                           // syslen
-    desc = desc | (sizeof(active_t) + sizeof(delay_t)) * 8 + EVENT_SYSTEM_DESC_LENTH_BIT_COUNT; // ex: 8 + 8 + 6 = 24
+    desc = desc | (sizeof(active_t) + sizeof(delay_t)) * 8 + EVENT_SYSTEM_DESC_LENTH_BIT_COUNT; // ex: 8 + 16 + 6 = 40
     return desc;
 }
 

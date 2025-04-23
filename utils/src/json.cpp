@@ -56,17 +56,6 @@ namespace granada
         return doc_->Size();
     }
 
-    std::shared_ptr<JsonValue> JsonValue::get(JString field)
-    {
-        if (!value_.HasMember(field))
-        {
-            return nullptr;
-        }
-
-        auto valuePtr = std::make_shared<JsonValue>(value_[field]);
-        return valuePtr;
-    }
-
     bool JsonValue::isArray()
     {
         return value_.IsArray();
@@ -136,6 +125,17 @@ namespace granada
         }
 
         auto valuePtr = std::make_shared<JsonValue>(value_[i]);
+        return valuePtr;
+    }
+
+    std::shared_ptr<JsonValue> JsonValue::get(JString field)
+    {
+        if (!value_.HasMember(field))
+        {
+            return nullptr;
+        }
+
+        auto valuePtr = std::make_shared<JsonValue>(value_[field]);
         return valuePtr;
     }
 }

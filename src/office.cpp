@@ -15,20 +15,28 @@ namespace granada
                         { onEvent(event); });
     }
 
+    void OfficeCenter::onEvent(events::EventPtr event)
+    {
+        if (event->usrDesc() == NewSubscriber)
+        {
+            onSubscribe(std::static_pointer_cast<NewSubscriberLoginEvent>(event));
+        }
+    }
+
     OfficeCenter::~OfficeCenter()
     {
         LOG_INFO("PublishCenter destroyed");
     }
 
-    void OfficeCenter::onEvent(events::EventPtr event)
+    void OfficeCenter::onStop(events::EventPtr event)
     {
         LOG_DEBUG_FMT("Received event {} {}", event->name(), utils::Format::dumpB(event->desc()));
         
         event_desc desc = event->usrDesc();
 
-        if (roles::Subscriber::hit(OfficeEventDesc::NewSubscriber, desc))
+        if (roles::Subscriber::hit(OFFICE_MASK, desc))
         {
-            onSubscribe(std::static_pointer_cast<NewSubscriberLoginEvent>(event));
+            onEvent(event);
         }
 
         for (auto &subscriber : subscribers_)

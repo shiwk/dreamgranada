@@ -8,11 +8,11 @@
 
 namespace granada
 {
-    const events::event_desc OFFICE_EVENT_MASK= 0xF;
+    const events::event_desc OFFICE_MASK= 0x01;
     
     enum OfficeEventDesc
     {
-        NewSubscriber =  OFFICE_EVENT_MASK
+        NewSubscriber =  COMBINE(OFFICE_MASK, 0x00)
     };
 
     struct NewSubscriberLoginEvent : public events::CommonEvent
@@ -28,8 +28,9 @@ namespace granada
     {
     public:
         OfficeCenter(events::BusPtr);
+        void onEvent(events::EventPtr);
         virtual ~OfficeCenter();
-        virtual void onEvent(events::EventPtr) override;
+        virtual void onStop(events::EventPtr) override;
 
     private:
         void onSubscribe(NewSubscriberLoginEventPtr);

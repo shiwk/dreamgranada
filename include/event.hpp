@@ -15,7 +15,7 @@ namespace granada
     namespace events
     {
         using event_desc = int64_t;
-        using delay_t = uint8_t;
+        using delay_t = uint16_t;
         using active_t = uint8_t;
         using bitcout_t = uint8_t;
 
@@ -70,7 +70,7 @@ namespace granada
         class BusStop
         {
         public:
-            virtual void onEvent(EventPtr) = 0;
+            virtual void onStop(EventPtr) = 0;
             virtual ~BusStop() {}
         };
 

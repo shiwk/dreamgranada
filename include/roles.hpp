@@ -8,6 +8,10 @@
 #include "event.hpp"
 
 #define EVENT_HIT_MAP_LENGTH 32
+#define ROLE_MASK_LENGTH 16
+#define EVENT_MASK_LENGTH 8
+#define COMBINE(ROLE, EVENT) (((ROLE) << ROLE_MASK_LENGTH) | ((EVENT) << EVENT_MASK_LENGTH))
+
 
 namespace http = granada::http;
 namespace granada
@@ -15,7 +19,7 @@ namespace granada
     class OfficeCenter;
     namespace roles
     {
-        const events::event_desc ROLE_MASK = 0xFFFF;
+        const events::event_desc ROLE_MASK = 0xFF0000;
         class Poster : public std::enable_shared_from_this<Poster>
         {
         public:
@@ -74,7 +78,7 @@ namespace granada
                 // auto mask = (1 << bitcount) - 1;
                 // auto bitMap = ehm >> 8;
                 // return bitMap != 0  && (usr_desc & mask) == (bitMap & mask);
-                return ehm != 0  && (usr_desc & ROLE_MASK) == ehm;
+                return ehm != 0  && (usr_desc & ROLE_MASK) >> ROLE_MASK_LENGTH == ehm;
             }
         };
         MAKE_SHARED_PTR(Subscriber);
