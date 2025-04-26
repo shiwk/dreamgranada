@@ -69,7 +69,9 @@ namespace granada
             static std::shared_ptr<T> instance(events::BusPtr bus, const std::string &prefix)
             {
                 auto &uuid_gen = granada::GranadaUID::instance();
-                return std::make_shared<T>(bus, uuid_gen.gen(prefix));
+                auto ins = std::make_shared<T>(bus, uuid_gen.gen(prefix));
+                ins->logIn();
+                return ins;
             }
 
             inline static bool hit(EventHitMap ehm, events::event_desc usr_desc)
