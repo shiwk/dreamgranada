@@ -1,8 +1,9 @@
 #include "event.hpp"
 #include <string>
+#include <cstdint>
 
 #define EVENT_SYSTEM_DESC_LENTH_BIT_COUNT 6
-#define EVENT_SYSTEM_DESC_LENTH_BITS 0x3F // 0x00111111
+#define EVENT_SYSTEM_DESC_LENTH_BITS 0x3F // 0B00111111
 
 using namespace granada::events;
 
@@ -13,26 +14,33 @@ event_desc granada::events::Event::desc() const
 
 event_desc granada::events::Event::usrDesc() const
 {
-    bitcout_t sysDescBitcount = static_cast<bitcout_t>(desc_ & EVENT_SYSTEM_DESC_LENTH_BITS);
+    bitcout_t sysDescBitcount = sysDescBitCount();
     return desc_ >> sysDescBitcount;
 }
 
 event_desc granada::events::Event::sysDesc() const
 {
-    bitcout_t sysDescBitcount = static_cast<bitcout_t>(desc_ & EVENT_SYSTEM_DESC_LENTH_BITS);
+    bitcout_t sysDescBitcount = sysDescBitCount();
     auto mask = (1 << sysDescBitcount) - 1;
     return desc_ & mask;
 }
 
 const delay_t granada::events::Event::delay() const
 {
+    bitcout_t sysDescBitcount = sysDescBitCount();
+
+
     delay_t d = static_cast<delay_t>(desc_ >> EVENT_SYSTEM_DESC_LENTH_BIT_COUNT);
+    size_t delayBitsCount = sysDescBitcount - EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;
+    d = d & (1 << delayBitsCount) - 1;
     return d;
 }
 
 const active_t granada::events::Event::active() const
 {
-    return static_cast<active_t>(desc_ >> (EVENT_SYSTEM_DESC_LENTH_BIT_COUNT + sizeof(delay_t)));
+    // return static_cast<active_t>(desc_ >> (EVENT_SYSTEM_DESC_LENTH_BIT_COUNT + sizeof(delay_t)));
+    // todo: active is not used
+    return 0xFF;
 }
 
 const uint64_t granada::events::Event::ts() const
@@ -50,11 +58,12 @@ event_desc granada::events::Event::sysInfo(delay_t delay, active_t active)
          active: event validity period
     */
 
-    event_desc desc = active;
-    desc = desc << sizeof(delay_t) * 8;
-    desc = desc | delay;
-    desc = desc << EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;                                           // syslen
-    desc = desc | (sizeof(active_t) + sizeof(delay_t)) * 8 + EVENT_SYSTEM_DESC_LENTH_BIT_COUNT; // ex: 8 + 16 + 6 = 40
+    event_desc desc = delay;
+    desc = desc << EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;
+    size_t minBytesRequired = Event::minBytesRequired(delay);
+    size_t minBitsRequired = minBytesRequired * 8;
+
+    desc = desc | minBitsRequired + EVENT_SYSTEM_DESC_LENTH_BIT_COUNT; // minBytesRequired(delay) * 8 + 6
     return desc;
 }
 
@@ -63,4 +72,10 @@ event_desc granada::events::Event::concatenate(event_desc sys, event_desc usr)
     bitcout_t sysDescBitcount = static_cast<bitcout_t>(sys & EVENT_SYSTEM_DESC_LENTH_BITS);
     event_desc desc = (usr << sysDescBitcount) | sys;
     return desc;
+}
+
+const size_t granada::events::Event::sysDescBitCount() const
+{
+    bitcout_t sysDescBitcount = static_cast<bitcout_t>(desc_ & EVENT_SYSTEM_DESC_LENTH_BITS);
+    return sysDescBitcount;
 }

@@ -62,9 +62,6 @@ void HttpContext::prepareRequest(const RequestPtr &request)
         reqStream << "Connection: " << request->connection << "\r\n";
         reqStream << "\r\n";
 
-#ifdef DEBUG_BUILD
-// dumpRequest(request);
-#endif
         break;
 
     case Method::POST:
@@ -85,6 +82,12 @@ void HttpContext::prepareRequest(const RequestPtr &request)
     default:
         break;
     }
+
+#ifdef DEBUG_BUILD
+    auto bufs = reqBuff.data();
+    std::string content(asio::buffers_begin(bufs), asio::buffers_end(bufs));
+    LOG_DEBUG_FMT("Request stream: {}", content);
+#endif
 }
 
 void HttpContext::complete(const error_code &error)

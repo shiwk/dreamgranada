@@ -12,7 +12,7 @@ namespace granada
     
     enum OfficeEventDesc
     {
-        NewSubscriber =  COMBINE(OFFICE_MASK, 0x00)
+        NewSubscriber =  COMBINE_EVENT(OFFICE_MASK, 0x00)
     };
 
     struct NewSubscriberLoginEvent : public events::CommonEvent
