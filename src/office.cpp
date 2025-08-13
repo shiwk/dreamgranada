@@ -34,14 +34,14 @@ namespace granada
         
         event_desc desc = event->usrDesc();
 
-        if (roles::Subscriber::hit(OFFICE_MASK, desc))
+        if (roles::Subscriber::interest(OFFICE_MASK, desc))
         {
             onEvent(event);
         }
 
         for (auto &subscriber : subscribers_)
         {
-            if (roles::Subscriber::hit(subscriber->ehm(), desc))
+            if (subscriber->interest(desc))
             {
                 subscriber->onEvent(event);
             }

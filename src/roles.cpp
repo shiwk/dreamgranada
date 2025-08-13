@@ -24,6 +24,11 @@ namespace granada
         post(std::make_shared<NewSubscriberLoginEvent>(id(), self));
     }
 
+    bool roles::Subscriber::interest(events::event_desc usrDesc) const
+    {
+        return interest(ehm(), usrDesc);
+    }
+
     roles::EventHitMap roles::Subscriber::ehm() const
     {
         return ehm_;

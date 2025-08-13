@@ -14,7 +14,7 @@ namespace granada
 {
     namespace events
     {
-        using event_desc = int64_t;
+        using event_desc = uint64_t;
         using delay_t = uint32_t;
         using active_t = uint8_t;
         using bitcout_t = uint8_t;
@@ -58,6 +58,7 @@ namespace granada
             event_desc sysDesc() const;
             const delay_t delay() const;
             const active_t active() const;
+            const uuid poster() const;
             const uint64_t ts() const;
             const size_t sysDescBitCount() const;
             virtual const std::string &name() const = 0;

@@ -36,6 +36,11 @@ const delay_t granada::events::Event::delay() const
     return d;
 }
 
+const granada::uuid granada::events::Event::poster() const
+{
+    return poster_;
+}
+
 const active_t granada::events::Event::active() const
 {
     // return static_cast<active_t>(desc_ >> (EVENT_SYSTEM_DESC_LENTH_BIT_COUNT + sizeof(delay_t)));

@@ -7,10 +7,10 @@
 #include "uuid.hpp"
 #include "event.hpp"
 
-#define EVENT_BIT_LENGTH 12
-#define SUB_ROLE_MASK_SHIFT 6
-#define COMBINE_EVENT(ROLE, EVENT) (((ROLE) << EVENT_BIT_LENGTH) | (EVENT)) // 12bits for rolemask, 12bits for event
-#define ROLE_MASK(ROLE, SUB_ROLE) (((ROLE) << SUB_ROLE_MASK_SHIFT) | (SUB_ROLE)) // 6bits for role, 6bits for subrole
+#define MASK(c) ((1LL << c) - 1)
+#define ROLE_MASK_BIT_LENGTH 8
+#define GRANADA_EVENT_BIT_LENGTH 8
+#define GRANADA_USR_DESC(ROLE, EVENT) (((ROLE) << GRANADA_EVENT_BIT_LENGTH) | (EVENT)) // 8bits for rolemask, 8bits for event
 
 
 namespace http = granada::http;
@@ -19,6 +19,7 @@ namespace granada
     class OfficeCenter;
     namespace roles
     {
+        using role_desc = uint8_t;
         class Poster : public std::enable_shared_from_this<Poster>
         {
         public:
@@ -42,7 +43,6 @@ namespace granada
 
         private:
             uuid id_;
-            virtual void handleError(granada::events::event_desc, const std::string &errorMsg) = 0;
         };
 
         MAKE_SHARED_PTR(GranadaRole);
@@ -55,6 +55,7 @@ namespace granada
         public:
             Subscriber(events::BusPtr bus, const uuid &id, EventHitMap ehm) : GranadaRole(bus, id), ehm_(ehm) {}
             virtual void onEvent(events::EventPtr event) = 0;
+            virtual bool interest(events::event_desc usrDesc) const;
             void logIn();
             EventHitMap ehm() const;
             template <class T>
@@ -73,13 +74,9 @@ namespace granada
                 return ins;
             }
 
-            inline static bool hit(EventHitMap ehm, events::event_desc usr_desc)
+            inline static bool interest(role_desc ehm, events::event_desc usrDesc)
             {
-                // events::bitcout_t bitcount = static_cast<events::bitcout_t>(ehm & 0XFF);
-                // auto mask = (1 << bitcount) - 1;
-                // auto bitMap = ehm >> 8;
-                // return bitMap != 0  && (usr_desc & mask) == (bitMap & mask);
-                return ehm != 0  && (usr_desc >> EVENT_BIT_LENGTH) == ehm;
+                return ehm != 0  && (usrDesc >> GRANADA_EVENT_BIT_LENGTH) == ehm;
             }
         };
         MAKE_SHARED_PTR(Subscriber);
