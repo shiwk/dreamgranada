@@ -2,16 +2,19 @@
 
 namespace granada
 {
-    JsonPtr Json::load(const std::string &str)
+    JsonPtr loadJson(const std::string &str)
     {
-        JsonPtr j = std::shared_ptr<Json>(new Json);
-        j->parse(str);
-        return j;
+        return std::make_shared<Json>(str);
     }
 
     void Json::parse(const std::string &str)
     {
         doc_->Parse(str.c_str());
+    }
+
+    Json::Json(const std::string &str)
+    {
+        parse(str);
     }
 
     bool Json::hasError()

@@ -10,3 +10,4 @@
 [submodule "3rd_party/gumbo"]
 	path = 3rd_party/gumbo
 	url = https://github.com/shiwk/gumbo-parser.git
+    branch = dev

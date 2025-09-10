@@ -25,7 +25,7 @@ namespace granada
 
         bool isArray();
         bool isObj();
-        bool has(const std::string&);
+        bool has(const std::string &);
 
         size_t size();
 
@@ -34,18 +34,18 @@ namespace granada
     private:
         const rapidjson::Value &value_;
     };
-
     MAKE_SHARED_PTR(JsonValue)
 
     class Json
     {
     public:
-        static std::shared_ptr<Json> load(const std::string &str);
+        Json(const std::string &);
         bool hasError();
         unsigned int getError();
+        Json() : doc_(std::make_shared<rapidjson::Document>()) {}
         ~Json()
         {
-            // LOG_DEBUG("Json destroyed");
+            LOG_DEBUG("Json destroyed");
         }
 
         JsonValuePtr get(const char *field);
@@ -56,9 +56,9 @@ namespace granada
 
         size_t size();
 
-    private:
-        Json() : doc_(std::make_shared<rapidjson::Document>()) {}
+        void toString(std::string &out);
 
+    private:
         void parse(const std::string &str);
         std::shared_ptr<rapidjson::Document> doc_;
         template <class T>
@@ -66,6 +66,11 @@ namespace granada
     };
 
     MAKE_SHARED_PTR(Json)
+
+    extern JsonPtr loadJson(const std::string &);
+
+    template <class T>
+    void toJson(T t, JsonPtr);
 }
 
 #endif

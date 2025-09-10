@@ -65,18 +65,17 @@ void HttpContext::prepareRequest(const RequestPtr &request)
         break;
 
     case Method::POST:
-        reqStream << "POST " << request->path << " HTTP/1.1\r\n";
+        reqStream << "POST " << request->path << (request->queries.empty() ? "" : "?");
+        writeQueryStream(request->queries, reqStream);
+        reqStream << " HTTP/1.1\r\n";
         reqStream << "Host: " << request->host << "\r\n";
+        writeResqHeaders(request->headers, reqStream);
+        reqStream << "Content-Length: " << request->body.size() << "\r\n";
         reqStream << "User-Agent: " << request->user_agent << "\r\n";
-        reqStream << "Accept: */*\r\n";
-        reqStream << "Content-Type: application/x-www-form-urlencoded\r\n";
-        writeQueryStream(request->queries, queryStream);
-        queryStr = queryStream.str();
-        contentLength = queryStr.size();
-        reqStream << "Content-Length: " << contentLength << "\r\n";
-        reqStream << "Connection: close\r\n";
+        reqStream << "Connection: " << request->connection << "\r\n";
         reqStream << "\r\n";
-        reqStream << queryStr;
+        reqStream << request->body;
+        
         break;
 
     default:
@@ -216,11 +215,35 @@ HttpContext::~HttpContext()
 
 void HttpContext::cleanUp()
 {
-    if (sock.lowest_layer().is_open())
-    {
-        error_code error;
-        error = sock.shutdown(error);
-        LOG_DEBUG_FMT("tcp::socket shutdown: {}", error.message());
-        sock.lowest_layer().close();
-    }
+    // if (sock.lowest_layer().is_open())
+    // {
+    //     error_code error;
+    //     error = sock.shutdown(error);
+    //     LOG_DEBUG_FMT("tcp::socket shutdown: {}", error.message());
+    //     sock.lowest_layer().close();
+    // }
+
+    auto timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
+
+    // timeout 
+    timer->expires_after(std::chrono::seconds(5));
+
+    sock.async_shutdown(
+        [&, timer](const boost::system::error_code& ec) {
+            // cancel timer
+            timer->cancel();
+            if (ec) {
+                LOG_WARNING_FMT("Shutdown failed: {}", ec.message());
+            } else {
+                LOG_DEBUG("SSL stream shutdown.");
+            }
+        });
+
+    timer->async_wait([&](const boost::system::error_code& ec) {
+        if (!ec) {
+            LOG_DEBUG("Shutdown timed out, closing socket.");
+            boost::system::error_code ignore_ec;
+            sock.lowest_layer().close(ignore_ec);
+        }
+    });
 }
