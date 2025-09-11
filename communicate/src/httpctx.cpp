@@ -228,22 +228,42 @@ void HttpContext::cleanUp()
     // timeout 
     timer->expires_after(std::chrono::seconds(5));
 
+    auto remote_endpoint = sock.lowest_layer().remote_endpoint().address().to_string();
+    auto ctx = shared_from_this();
     sock.async_shutdown(
-        [&, timer](const boost::system::error_code& ec) {
+        [ctx, timer](const boost::system::error_code& ec) {
             // cancel timer
             timer->cancel();
             if (ec) {
-                LOG_WARNING_FMT("Shutdown failed: {}", ec.message());
+                LOG_WARNING_FMT("Shutdown failed: {} ", ec.message());
+                // application data after close notify
+                if (ec.category() == boost::asio::error::get_ssl_category() &&
+                    ERR_GET_REASON(ERR_peek_last_error()) == SSL_R_APPLICATION_DATA_AFTER_CLOSE_NOTIFY)
+                {
+                    LOG_WARNING("Ignore SSL error: application data after close notify");
+                    boost::system::error_code ignore_ec;
+                    ctx->sock.lowest_layer().close(ignore_ec);
+                    return;
+                }
+
+                // RST or FIN 
+                if (ec == boost::asio::error::eof) {
+                    LOG_WARNING("Peer closed connection (EOF), treating as success.");
+                    return;
+                }
             } else {
                 LOG_DEBUG("SSL stream shutdown.");
             }
         });
 
-    timer->async_wait([&](const boost::system::error_code& ec) {
+    timer->async_wait([ctx](const boost::system::error_code& ec) {
         if (!ec) {
-            LOG_DEBUG("Shutdown timed out, closing socket.");
-            boost::system::error_code ignore_ec;
-            sock.lowest_layer().close(ignore_ec);
+            LOG_DEBUG("Shutdown timed out, closing socket");
+            if (ctx->sock.lowest_layer().is_open())
+            {
+                boost::system::error_code ignore_ec;
+                ctx->sock.lowest_layer().close(ignore_ec);
+            }
         }
     });
 }

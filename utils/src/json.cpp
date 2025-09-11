@@ -1,4 +1,6 @@
 #include "json.hpp"
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
 
 namespace granada
 {
@@ -12,9 +14,17 @@ namespace granada
         doc_->Parse(str.c_str());
     }
 
-    Json::Json(const std::string &str)
+    Json::Json(const std::string &str) : doc_(std::make_shared<rapidjson::Document>())
     {
         parse(str);
+    }
+
+    void Json::dump(std::string &out)
+    {
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        doc_->Accept(writer);
+        out = buffer.GetString();
     }
 
     bool Json::hasError()

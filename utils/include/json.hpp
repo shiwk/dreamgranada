@@ -39,6 +39,12 @@ namespace granada
     class Json
     {
     public:
+        template <class T>
+        Json(std::shared_ptr<T> t): doc_(std::make_shared<rapidjson::Document>())
+        {
+            t->toJsonMember(doc_);
+        }
+
         Json(const std::string &);
         bool hasError();
         unsigned int getError();
@@ -56,7 +62,7 @@ namespace granada
 
         size_t size();
 
-        void toString(std::string &out);
+        void dump(std::string &out);
 
     private:
         void parse(const std::string &str);
@@ -67,10 +73,33 @@ namespace granada
 
     MAKE_SHARED_PTR(Json)
 
-    extern JsonPtr loadJson(const std::string &);
+    template<class T>
+    class JsonDocizable : public std::enable_shared_from_this<T>
+    {
+    public:
+        ~JsonDocizable() = default;
+        virtual void toJsonMember(std::shared_ptr<rapidjson::Document>) const = 0;
+        void dump(std::string &out) const
+        {
+            auto json = granada::Json(sharedT());
+            json.dump(out);
+        }
+    private:
+        std::shared_ptr<T const> sharedT() const
+        {
+            return this->shared_from_this();
+        }
+    };
 
-    template <class T>
-    void toJson(T t, JsonPtr);
+
+    class JsonValizable
+    {
+    public:
+        ~JsonValizable() = default;
+        virtual void toJsonMember(rapidjson::Value&, rapidjson::Document::AllocatorType &)  const = 0;
+    };
+
+    extern JsonPtr loadJson(const std::string &);    
 }
 
 #endif
