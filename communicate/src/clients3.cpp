@@ -26,7 +26,7 @@ void HttpClient3::onResolve(const error_code &error, tcp::resolver::results_type
 
     for (auto &endpoint : endpoints)
     {
-        // LOG_DEBUG_FMT("Endpoint: {}", endpoint.endpoint().address().to_string());
+        LOG_DEBUG_FMT("Endpoint: {}", endpoint.endpoint().address().to_string());
     }
 
     asio::async_connect(context->sock.lowest_layer(), endpoints, [context, timer](const error_code &error, const tcp::endpoint &)
@@ -52,6 +52,12 @@ void HttpClient3::onHandshake(const error_code &error, const HttpContextPtr &con
     if (error)
     {
         LOG_ERROR_FMT("Handshake error: {}", error.message());
+        unsigned long e;
+        while ((e = ERR_get_error()) != 0) {
+            char buf[256];
+            ERR_error_string_n(e, buf, sizeof(buf));
+            LOG_ERROR_FMT("OpenSSL error: {}\n",  buf);
+        }
         return finish(context, error, timer);
     }
 

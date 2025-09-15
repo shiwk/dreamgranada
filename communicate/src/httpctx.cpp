@@ -1,5 +1,7 @@
 #include "httpctx.hpp"
 #include "logger.hpp"
+#include <openssl/err.h>
+#include <encode.hpp>
 
 using namespace granada::http;
 
@@ -26,7 +28,7 @@ void HttpContext::writeQueryStream(std::unordered_map<std::string, std::string> 
         {
             stream << "&";
         }
-        stream << it->first << "=" << it->second;
+        stream << granada::urlEncode(it->first) << "=" << granada::urlEncode(it->second);
     }
 }
 
@@ -40,12 +42,16 @@ void HttpContext::writeResqHeaders(std::unordered_map<std::string, std::string> 
 
 ssl::context &HttpContext::getSSLCtx()
 {
-    static asio::ssl::context ctx(asio::ssl::context::sslv23);
+    static asio::ssl::context ctx(asio::ssl::context::tlsv13);
     return ctx;
 }
 
 void HttpContext::prepareRequest(const RequestPtr &request)
 {
+    if (SSL_set_tlsext_host_name(sock.native_handle(), request->host.c_str()) != 1) {
+        LOG_ERROR("Failed to set SNI hostname.");
+    }
+
     std::ostream reqStream(&reqBuff);
     std::ostringstream queryStream;
     size_t contentLength = 0;
@@ -85,7 +91,7 @@ void HttpContext::prepareRequest(const RequestPtr &request)
 #ifdef DEBUG_BUILD
     auto bufs = reqBuff.data();
     std::string content(asio::buffers_begin(bufs), asio::buffers_end(bufs));
-    LOG_DEBUG_FMT("Request stream: {}", content);
+    LOG_DEBUG_FMT("Request stream:\n{}", content);
 #endif
 }
 
@@ -207,6 +213,17 @@ void granada::http::HttpContext::dumpRequest(RequestPtr request)
     is.seekg(0);
 }
 
+void granada::http::HttpContext::safeClose()
+{
+    boost::system::error_code ignored_ec;
+    if (sock.lowest_layer().is_open())
+    {
+        sock.lowest_layer().shutdown(tcp::socket::shutdown_both, ignored_ec);
+        sock.lowest_layer().close(ignored_ec);
+        LOG_DEBUG("Socket safe closed.");
+    }
+}
+
 HttpContext::~HttpContext()
 {
     // cleanUp();
@@ -215,55 +232,86 @@ HttpContext::~HttpContext()
 
 void HttpContext::cleanUp()
 {
-    // if (sock.lowest_layer().is_open())
-    // {
-    //     error_code error;
-    //     error = sock.shutdown(error);
-    //     LOG_DEBUG_FMT("tcp::socket shutdown: {}", error.message());
-    //     sock.lowest_layer().close();
-    // }
-
+    std::string remote_endpoint;
+    try
+    {
+        if (!sock.lowest_layer().is_open())
+        {
+            // already closed
+            LOG_DEBUG("Socket already closed.");
+            return;
+        }
+        remote_endpoint = sock.lowest_layer().remote_endpoint().address().to_string();
+    }
+    catch (const std::exception &e)
+    {
+        LOG_WARNING_FMT("Failed to get remote endpoint: {}", e.what());
+        remote_endpoint = "unknown";
+    }
+    LOG_DEBUG_FMT("Starting SSL shutdown to {}", remote_endpoint);
     auto timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
-
     // timeout 
     timer->expires_after(std::chrono::seconds(5));
-
-    auto remote_endpoint = sock.lowest_layer().remote_endpoint().address().to_string();
     auto ctx = shared_from_this();
     sock.async_shutdown(
         [ctx, timer](const boost::system::error_code& ec) {
             // cancel timer
             timer->cancel();
-            if (ec) {
-                LOG_WARNING_FMT("Shutdown failed: {} ", ec.message());
-                // application data after close notify
-                if (ec.category() == boost::asio::error::get_ssl_category() &&
-                    ERR_GET_REASON(ERR_peek_last_error()) == SSL_R_APPLICATION_DATA_AFTER_CLOSE_NOTIFY)
-                {
-                    LOG_WARNING("Ignore SSL error: application data after close notify");
-                    boost::system::error_code ignore_ec;
-                    ctx->sock.lowest_layer().close(ignore_ec);
-                    return;
-                }
-
-                // RST or FIN 
-                if (ec == boost::asio::error::eof) {
-                    LOG_WARNING("Peer closed connection (EOF), treating as success.");
-                    return;
-                }
-            } else {
-                LOG_DEBUG("SSL stream shutdown.");
+            if (!ec)
+            {
+                LOG_DEBUG("SSL stream shutdown succeed.");
+                return;
             }
+            
+            std::string sslErrString(256, 0);
+
+            unsigned long err = ERR_get_error();
+            if (err != 0){
+                ERR_error_string_n(err, &sslErrString[0], 256);
+            }
+            const std::string errMsg = ec.message();
+            if (ec == asio::error::operation_aborted)
+            {
+                LOG_INFO("Shutdown cancelled (operation_aborted). Treat as closed or user-cancelled.");
+                return;
+            }
+            if (ec.value() == EBADF ||
+                ec == boost::system::error_code(static_cast<int>(boost::system::errc::bad_file_descriptor), boost::system::generic_category()))
+            {
+                LOG_WARNING("Socket already closed (bad_file_descriptor).");
+                return ctx->safeClose();
+            }
+            if (ec == boost::asio::ssl::error::stream_truncated) {
+                LOG_INFO("Stream truncated during SSL shutdown; treating as normal close.");
+                return ctx->safeClose();
+            }
+            if (errMsg.find("application data after close notify") != std::string::npos ||
+                sslErrString.find("application data after close notify") != std::string::npos)
+            {
+                LOG_WARNING("Application data after close_notify detected. Treating as closed.");
+                return ctx->safeClose();
+            }
+            if (errMsg.find("shutdown while in init") != std::string::npos ||
+                sslErrString.find("shutdown while in init") != std::string::npos)
+            {
+                LOG_ERROR("Called SSL_shutdown while SSL in init/handshake state. Programming error: ensure handshake finished before shutdown.");
+                return ctx->safeClose();
+            }
+            if (errMsg.find("uninitialized") != std::string::npos ||
+                sslErrString.find("uninitialized") != std::string::npos)
+            {
+                LOG_ERROR("SSL_shutdown reported 'uninitialized'. Likely using freed/uninitialized SSL object. Fix lifecycle management.");
+                return ctx->safeClose();
+            }
+            
+            LOG_ERROR_FMT("SSL shutdown error: {}, OpenSSL error: {}", errMsg, sslErrString);
+            ctx->safeClose();
         });
 
     timer->async_wait([ctx](const boost::system::error_code& ec) {
         if (!ec) {
             LOG_DEBUG("Shutdown timed out, closing socket");
-            if (ctx->sock.lowest_layer().is_open())
-            {
-                boost::system::error_code ignore_ec;
-                ctx->sock.lowest_layer().close(ignore_ec);
-            }
+            return ctx->safeClose();
         }
     });
 }

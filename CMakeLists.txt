@@ -12,8 +12,8 @@ add_subdirectory(3rd_party/glog glog)
 add_subdirectory(3rd_party/fmt)
 add_subdirectory(3rd_party/gumbo)
 
-add_subdirectory(communicate)
 add_subdirectory(utils)
+add_subdirectory(communicate)
 
 
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)

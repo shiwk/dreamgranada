@@ -1,5 +1,5 @@
-#ifndef REQEUST_HPP
-#define REQEUST_HPP
+#ifndef HTTPCTX_HPP
+#define HTTPCTX_HPP
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -9,11 +9,8 @@
 #include <unordered_map>
 #include <vector>
 #include "common.hpp"
+#include "reqresp.hpp"
 
-#define HTTP "http"
-#define HTTPS "https"
-#define CHUNKED "chunked"
-#define TRANSFER_ENCODING "Transfer-Encoding"
 
 using namespace boost::asio;
 namespace asio = boost::asio;
@@ -27,72 +24,12 @@ namespace granada
     namespace http
     {
         MAKE_SHARED_PTR(io_context);
-        enum class Method
-        {
-            GET = 0,
-            POST,
-            PUT,
-            DELETE,
-            HEAD
-        };
-
-        struct Request
-        {
-            bool https = true;
-            Method method;
-            std::string path;
-            std::string host;
-            std::string connection;
-            std::string user_agent;
-            std::string body;
-            std::unordered_map<std::string, std::string> headers;
-            std::unordered_map<std::string, std::string> queries;
-            uint8_t timeout = 10;
-
-            Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent = "granada_client", const std::string &connection = "close", const std::string &body = "", const bool https = true);
-            void addHeader(const std::string &, const std::string &value);
-            void addQuery(const std::string &, const std::string &value = "");
-        };
-
-        MAKE_SHARED_PTR(Request);
-
-        using HttpStatus = unsigned short;
-        using ErrorHandler = std::function<void(const error_code &)>;
-        using RespHeaders = std::unordered_map<std::string, std::string>;
-        using RespBody = std::string;
-
-        struct ResponseStatus
-        {
-            ResponseStatus(HttpStatus code) : statusCode(code) {}
-            std::string version;
-            HttpStatus statusCode;
-            std::string statusMessage;
-        };
-        MAKE_SHARED_PTR(ResponseStatus);
-
-        struct Response : ResponseStatus
-        {
-            Response() : ResponseStatus(0) {};
-            RespHeaders headers;
-            RespBody content;
-            bool chunked()
-            {
-                return headers.find(TRANSFER_ENCODING) != headers.end() && headers[TRANSFER_ENCODING] == CHUNKED;
-            }
-        };
-
-        MAKE_SHARED_PTR(Response);
-
-        using ResponseHandler = std::function<void(const error_code &, ResponsePtr &)>;
-        using HeaderLine = std::string;
-        using StatusLine = std::string;
-
         struct HttpContextUtil
         {
             static void split(const std::string &, const char, std::vector<std::string> &);
-            static std::string strip(const std::string& str);
+            static std::string strip(const std::string &str);
         };
-
+        
         struct HttpContext : std::enable_shared_from_this<HttpContext>
         {
         private:
@@ -135,6 +72,7 @@ namespace granada
             // bool getResponse(ResponsePtr &);
             static bool parseHeaders(const std::vector<HeaderLine> &, RespHeaders &);
             void dumpRequest(RequestPtr request);
+            void safeClose();
         };
 
         MAKE_SHARED_PTR(HttpContext);

@@ -19,6 +19,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(granada_comm PRIVATE DEBUG_BUILD)
 endif()
 
+target_link_libraries(granada_comm PRIVATE granada_utils)
 target_link_libraries(granada_comm PUBLIC glog::glog fmt::fmt OpenSSL::SSL)
 target_include_directories(granada_comm PUBLIC ${BOOST_ROOT_DIR})
 target_include_directories(granada_comm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

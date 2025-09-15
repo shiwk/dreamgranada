@@ -37,14 +37,14 @@ namespace granada
         return doc_->GetParseError();
     }
 
-    JsonValuePtr Json::get(JString field)
+    JsonValuePtr Json::get(const std::string &field)
     {
-        if (!doc_->HasMember(field))
+        if (!doc_->HasMember(field.c_str()))
         {
             return nullptr;
         }
 
-        auto valuePtr = std::make_shared<JsonValue>(doc_->operator[](field));
+        auto valuePtr = std::make_shared<JsonValue>(doc_->operator[](field.c_str()));
         return valuePtr;
     }
 
@@ -59,9 +59,24 @@ namespace granada
         return valuePtr;
     }
 
+    JsonValuePtr Json::operator[](const std::string &field)
+    {
+        return get(field);
+    }
+
+    JsonValuePtr Json::operator[](size_t i)
+    {
+        return get(i);
+    }
+
     bool Json::isArray()
     {
         return doc_->IsArray();
+    }
+
+    bool Json::isObj()
+    {
+        return doc_->IsObject();
     }
 
     size_t Json::size()
@@ -95,37 +110,37 @@ namespace granada
     }
 
     template <>
-    int JsonValue::get()
+    int JsonValue::value()
     {
         return value_.Get<int>();
     }
 
     template <>
-    uint64_t JsonValue::get()
+    uint64_t JsonValue::value()
     {
         return value_.Get<uint64_t>();
     }
 
     template <>
-    JString JsonValue::get()
+    JString JsonValue::value()
     {
         return value_.Get<JString>();
     }
 
     template <>
-    double JsonValue::get()
+    double JsonValue::value()
     {
         return value_.Get<double>();
     }
 
     template <>
-    std::string JsonValue::get()
+    std::string JsonValue::value()
     {
         return value_.GetString();
     }
 
     template <>
-    bool JsonValue::get()
+    bool JsonValue::value()
     {
         return value_.GetBool();
     }
@@ -141,14 +156,24 @@ namespace granada
         return valuePtr;
     }
 
-    std::shared_ptr<JsonValue> JsonValue::get(JString field)
+    std::shared_ptr<JsonValue> JsonValue::get(const std::string &field)
     {
-        if (!value_.HasMember(field))
+        if (!value_.HasMember(field.c_str()))
         {
             return nullptr;
         }
 
-        auto valuePtr = std::make_shared<JsonValue>(value_[field]);
+        auto valuePtr = std::make_shared<JsonValue>(value_[field.c_str()]);
         return valuePtr;
+    }
+
+    std::shared_ptr<JsonValue> JsonValue::operator[](const std::string &field)
+    {
+        return get(field);
+    }
+
+    std::shared_ptr<JsonValue> JsonValue::operator[](size_t i)
+    {
+        return get(i);
     }
 }

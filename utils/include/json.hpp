@@ -16,19 +16,19 @@ namespace granada
         {
             // LOG_DEBUG("JsonValue destroyed");
         }
-        std::shared_ptr<JsonValue> get(const char *field);
-
+        
+        std::shared_ptr<JsonValue> get(const std::string&);
+        std::shared_ptr<JsonValue> get(size_t);
         template <class T>
-        T get();
+        T value();
 
-        std::shared_ptr<JsonValue> get(size_t i);
+        std::shared_ptr<JsonValue> operator[](const std::string&);
+        std::shared_ptr<JsonValue> operator[](size_t);
 
         bool isArray();
         bool isObj();
         bool has(const std::string &);
-
         size_t size();
-
         bool empty();
 
     private:
@@ -54,11 +54,15 @@ namespace granada
             LOG_DEBUG("Json destroyed");
         }
 
-        JsonValuePtr get(const char *field);
-
+        JsonValuePtr get(const std::string &);
         JsonValuePtr get(size_t i);
+        JsonValuePtr operator[](const std::string &field);
+        JsonValuePtr operator[](size_t i);
+
 
         bool isArray();
+
+        bool isObj();
 
         size_t size();
 
@@ -90,8 +94,6 @@ namespace granada
             return this->shared_from_this();
         }
     };
-
-
     class JsonValizable
     {
     public:
