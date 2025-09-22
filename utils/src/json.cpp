@@ -4,6 +4,16 @@
 
 namespace granada
 {
+    std::string JsonMember::key()
+    {
+        return member_.name.GetString();
+    }
+
+    JsonValuePtr JsonMember::value()
+    {
+        return std::make_shared<JsonValue>(member_.value);
+    }
+
     JsonPtr loadJson(const std::string &str)
     {
         return std::make_shared<Json>(str);
@@ -107,6 +117,17 @@ namespace granada
     bool JsonValue::empty()
     {
         return value_.Empty();
+    }
+
+    JsonMemberPtr JsonValue::getMember(size_t i)
+    {
+        if (!value_.IsObject() || i >= value_.MemberCount())
+        {
+            return nullptr;
+        }
+
+        auto memberPtr = std::make_shared<JsonMember>(*(value_.MemberBegin() + i));
+        return memberPtr;
     }
 
     template <>

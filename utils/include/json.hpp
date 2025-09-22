@@ -8,17 +8,31 @@
 namespace granada
 {
     using JString = const char *;
+    class JsonValue;
+    class JsonMember
+    {
+    public:
+        JsonMember(const rapidjson::Value::Member &member) : member_(member) {}
+        ~JsonMember() = default;
+        
+        std::string key();
+        std::shared_ptr<JsonValue> value();
+
+    private:
+        const rapidjson::Value::Member &member_;
+    };
+
+    MAKE_SHARED_PTR(JsonMember)
+
     class JsonValue
     {
     public:
         JsonValue(const rapidjson::Value &value) : value_(value) {}
-        ~JsonValue()
-        {
-            // LOG_DEBUG("JsonValue destroyed");
-        }
+        ~JsonValue() = default;
         
         std::shared_ptr<JsonValue> get(const std::string&);
         std::shared_ptr<JsonValue> get(size_t);
+        std::shared_ptr<JsonMember> getMember(size_t);
         template <class T>
         T value();
 
