@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <limits>
 #include <bitset>
+#include <ctime>
 
 namespace granada
 {
@@ -27,6 +28,12 @@ namespace granada
                 std::string binaryString = std::bitset<64>(t).to_string();
                 return std::move("0B" + binaryString);
             }
+        };
+
+        class DateUtil
+        {
+            public:
+            static time_t dateToTimestamp(const std::string &dateStr, const std::string &dateFmt);
         };
     } // namespace utils
 } // namespace granada
