@@ -20,7 +20,7 @@ namespace granada
     namespace roles
     {
         using role_desc = uint8_t;
-        class Poster : public std::enable_shared_from_this<Poster>
+        class Poster
         {
         public:
             Poster(events::BusPtr bus) : bus_(bus) {}
@@ -33,13 +33,25 @@ namespace granada
         };
 
         using EventHitMap = unsigned long long;
-        class GranadaRole : public Poster
+        class GranadaRole : public Poster,  public std::enable_shared_from_this<GranadaRole>
         {
         public:
             GranadaRole(events::BusPtr bus, const uuid &id) : Poster(bus), id_(id) {};
 
             virtual const uuid id() const;
             virtual ~GranadaRole() {}
+        protected:
+            template<class T>
+            std::shared_ptr<T> shared_T_from_this()
+            {
+                #ifdef DEBUG_BUILD
+                auto ptr = std::dynamic_pointer_cast<T>(this->shared_from_this());
+                assert(ptr && "Wrong type passed to shared_T_from_this!");
+                return ptr;
+                #else
+                return std::static_pointer_cast<T>(this->shared_from_this());
+                #endif
+            }
 
         private:
             uuid id_;
