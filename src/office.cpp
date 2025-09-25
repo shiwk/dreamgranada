@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include "roles.hpp"
 #include <util.hpp>
+#include <boost/stacktrace.hpp>
 
 using namespace granada::events;
 #define OFFICE_SUBSCRIBER "OFFICE_SUBSCRIBER"
@@ -43,7 +44,16 @@ namespace granada
         {
             if (subscriber->interest(desc))
             {
-                subscriber->onEvent(event);
+                try
+                {
+                    subscriber->onEvent(event);
+                }
+                catch (const std::exception &e)
+                {
+                    LOG_ERROR_FMT("Error occurred while processing event {}: {}", event->name(), e.what());
+                    LOG_DEBUG(boost::stacktrace::stacktrace());
+                    throw;
+                }
             }
         }
     }

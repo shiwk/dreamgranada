@@ -6,6 +6,7 @@ using namespace granada::http;
 
 void HttpClient3::asyncRequest(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &requestCallback, const ErrorHandler &errorHandler)
 {
+    LOG_INFO_FMT("Requesting {}://{}", request->https ? HTTPS : HTTP, request->host + request->path);
     auto resolver = std::make_shared<tcp::resolver>(*io_context);
     auto context = std::make_shared<HttpContext>(io_context, request, requestCallback, errorHandler);
     // TODO: timer expire specify

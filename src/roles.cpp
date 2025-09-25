@@ -20,7 +20,7 @@ namespace granada
 
     void roles::Subscriber::logIn()
     {
-        auto self = std::dynamic_pointer_cast<roles::Subscriber>(shared_from_this());
+        auto self = shared_T_from_this<roles::Subscriber>();
         post(std::make_shared<NewSubscriberLoginEvent>(id(), self));
     }
 

@@ -191,7 +191,7 @@ namespace granada
         auto memberPtr = std::make_shared<JsonMember>(doc, *(value_.MemberBegin() + i));
         return memberPtr;
     }
-    
+
     template <>
     int JsonValue::value()
     {

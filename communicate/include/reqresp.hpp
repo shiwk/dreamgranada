@@ -47,23 +47,28 @@ namespace granada
 
         MAKE_SHARED_PTR(Request);
 
-        using HttpStatus = unsigned short;
+        using HttpStatus = std::string;
+        using HttpMessage = std::string;
+        namespace status
+        {
+            extern HttpStatus OK;
+        }
         using ErrorHandler = std::function<void(const boost::system::error_code &)>;
         using RespHeaders = std::unordered_map<std::string, std::string>;
         using RespBody = std::string;
 
         struct ResponseStatus
         {
-            ResponseStatus(HttpStatus code) : statusCode(code) {}
+            ResponseStatus() = default;
             std::string version;
             HttpStatus statusCode;
-            std::string statusMessage;
+            HttpMessage statusMessage;
         };
         MAKE_SHARED_PTR(ResponseStatus);
 
         struct Response : ResponseStatus
         {
-            Response() : ResponseStatus(0) {};
+            Response() : ResponseStatus() {}
             RespHeaders headers;
             RespBody content;
             bool chunked()

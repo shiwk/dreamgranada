@@ -6,6 +6,7 @@
 #include <limits>
 #include <bitset>
 #include <ctime>
+#include <cstdint>
 
 namespace granada
 {
@@ -34,6 +35,14 @@ namespace granada
         {
             public:
             static time_t dateToTimestamp(const std::string &dateStr, const std::string &dateFmt);
+            static uint64_t msUntilNext(int target_hour, int target_minute = 0, int target_second = 0);
+        };
+
+        class RandomUtil
+        {
+        public:
+            static int getRandomInt(int min, int max);
+            static double getRandomDouble(double min, double max);
         };
     } // namespace utils
 } // namespace granada
