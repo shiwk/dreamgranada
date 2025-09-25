@@ -11,7 +11,7 @@ namespace granada
 
     JsonValuePtr JsonMember::value()
     {
-        return std::make_shared<JsonValue>(member_.value);
+        return std::make_shared<JsonValue>(doc, member_.value);
     }
 
     JsonPtr loadJson(const std::string &str)
@@ -21,10 +21,10 @@ namespace granada
 
     void Json::parse(const std::string &str)
     {
-        doc_->Parse(str.c_str());
+        doc->Parse(str.c_str());
     }
 
-    Json::Json(const std::string &str) : doc_(std::make_shared<rapidjson::Document>())
+    Json::Json(const std::string &str) : JsonDoc(std::make_shared<rapidjson::Document>())
     {
         parse(str);
     }
@@ -33,39 +33,101 @@ namespace granada
     {
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        doc_->Accept(writer);
+        doc->Accept(writer);
         out = buffer.GetString();
     }
 
     bool Json::hasError()
     {
-        return doc_->HasParseError();
+        return doc->HasParseError();
     }
 
     unsigned int Json::getError()
     {
-        return doc_->GetParseError();
+        return doc->GetParseError();
+    }
+
+    template <>
+    void JsonValue::addMember(JKey key, const double &d)
+    {
+        auto alloc = GetAllocator();
+        value_.AddMember(rapidjson::Value(key, alloc).Move(),
+                         rapidjson::Value(d).Move(),
+                         alloc);
+    }
+
+    template <>
+    void JsonValue::addMember(JKey key, const std::string &s)
+    {
+        auto alloc = GetAllocator();
+        value_.AddMember(rapidjson::Value(key, alloc).Move(),
+                         rapidjson::Value(s.c_str(), alloc).Move(),
+                         alloc);
+    }
+
+    template <>
+    void Json::addMember(JKey key, const double &value)
+    {
+        auto alloc = GetAllocator();
+        doc->AddMember(rapidjson::Value(key, alloc).Move(),
+                       rapidjson::Value(value).Move(),
+                       alloc);
+    }
+
+    template <>
+    void Json::addMember(JKey key, const std::string &value)
+    {
+        auto alloc = GetAllocator();
+        doc->AddMember(rapidjson::Value(key, alloc).Move(),
+                       rapidjson::Value(value.c_str(), alloc).Move(),
+                       alloc);
+    }
+
+    void Json::addObjMember(JKey key, const JsonValizablePtr obj)
+    {
+        auto alloc = GetAllocator();
+        rapidjson::Value value(rapidjson::kObjectType);
+        auto jsonValue = std::make_shared<JsonValue>(doc, value);
+        obj->toJson(jsonValue);
+        doc->AddMember(rapidjson::Value(key, alloc).Move(),
+                       rapidjson::Value(value, alloc).Move(),
+                       alloc);
+    }
+
+    void Json::addArrayMember(JKey key, const JsonValizablePtr obj)
+    {
+        auto alloc = GetAllocator();
+        rapidjson::Value value(rapidjson::kArrayType);
+        auto jsonValue = std::make_shared<JsonValue>(doc, value);
+        obj->toJson(jsonValue);
+        doc->AddMember(rapidjson::Value(key, alloc).Move(), value, alloc);
     }
 
     JsonValuePtr Json::get(const std::string &field)
     {
-        if (!doc_->HasMember(field.c_str()))
+        // if (!doc->HasMember(field.c_str()))
+        // {
+        //     return nullptr;
+        // }
+
+        auto itr = doc->FindMember(field.c_str());
+        if (itr == doc->MemberEnd())
         {
             return nullptr;
         }
 
-        auto valuePtr = std::make_shared<JsonValue>(doc_->operator[](field.c_str()));
+        auto valuePtr = std::make_shared<JsonValue>(doc, itr->value);
         return valuePtr;
     }
 
-    JsonValuePtr Json::get(size_t i)
+    JsonValuePtr Json::getElement(size_t i)
     {
-        if (!doc_->IsArray())
+        if (!doc->IsArray())
         {
             return nullptr;
         }
 
-        auto valuePtr = std::make_shared<JsonValue>(doc_->operator[](i));
+        auto valuePtr = std::make_shared<JsonValue>(doc, doc->operator[](i));
         return valuePtr;
     }
 
@@ -76,22 +138,22 @@ namespace granada
 
     JsonValuePtr Json::operator[](size_t i)
     {
-        return get(i);
+        return getElement(i);
     }
 
     bool Json::isArray()
     {
-        return doc_->IsArray();
+        return doc->IsArray();
     }
 
     bool Json::isObj()
     {
-        return doc_->IsObject();
+        return doc->IsObject();
     }
 
     size_t Json::size()
     {
-        return doc_->Size();
+        return doc->Size();
     }
 
     bool JsonValue::isArray()
@@ -104,7 +166,7 @@ namespace granada
         return value_.IsObject();
     }
 
-    bool JsonValue::has(const std::string& member)
+    bool JsonValue::has(const std::string &member)
     {
         return value_.HasMember(member.c_str());
     }
@@ -126,10 +188,10 @@ namespace granada
             return nullptr;
         }
 
-        auto memberPtr = std::make_shared<JsonMember>(*(value_.MemberBegin() + i));
+        auto memberPtr = std::make_shared<JsonMember>(doc, *(value_.MemberBegin() + i));
         return memberPtr;
     }
-
+    
     template <>
     int JsonValue::value()
     {
@@ -166,35 +228,57 @@ namespace granada
         return value_.GetBool();
     }
 
-    std::shared_ptr<JsonValue> JsonValue::get(size_t i)
+    std::shared_ptr<JsonValue> JsonValue::getElement(size_t i)
     {
         if (!value_.IsArray())
         {
             return nullptr;
         }
 
-        auto valuePtr = std::make_shared<JsonValue>(value_[i]);
+        auto valuePtr = std::make_shared<JsonValue>(doc, value_[i]);
         return valuePtr;
     }
 
-    std::shared_ptr<JsonValue> JsonValue::get(const std::string &field)
+    std::shared_ptr<JsonValue> JsonValue::getObj(const std::string &field)
     {
-        if (!value_.HasMember(field.c_str()))
+        auto itr = value_.FindMember(field.c_str());
+        if (itr == value_.MemberEnd())
         {
             return nullptr;
         }
-
-        auto valuePtr = std::make_shared<JsonValue>(value_[field.c_str()]);
+        auto valuePtr = std::make_shared<JsonValue>(doc, itr->value);
         return valuePtr;
+    }
+
+    void JsonValue::addElement(const JsonValizablePtr objPtr)
+    {
+        auto alloc = GetAllocator();
+        rapidjson::Value value(rapidjson::kObjectType);
+        auto jsonValue = std::make_shared<JsonValue>(doc, value);
+        objPtr->toJson(jsonValue);
+        value_.PushBack(value, alloc);
     }
 
     std::shared_ptr<JsonValue> JsonValue::operator[](const std::string &field)
     {
-        return get(field);
+        return getObj(field);
     }
 
     std::shared_ptr<JsonValue> JsonValue::operator[](size_t i)
     {
-        return get(i);
+        return getElement(i);
+    }
+
+    rapidjson::Document::AllocatorType &JsonDoc::GetAllocator()
+    {
+        return doc->GetAllocator();
+    }
+
+    void JsonDocizable::dump(std::string &out) const
+    {
+        // auto json = granada::Json(sharedT());
+        auto json = std::make_shared<Json>();
+        toJson(json);
+        json->dump(out);
     }
 }

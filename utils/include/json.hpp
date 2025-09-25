@@ -8,33 +8,70 @@
 namespace granada
 {
     using JString = const char *;
+    using JKey = const char *;
     class JsonValue;
-    class JsonMember
+    class JsonValizable;
+    
+    class JsonDoc
+    {
+        public:
+        JsonDoc(std::shared_ptr<rapidjson::Document> doc) : doc(doc){}
+        protected:
+            rapidjson::Document::AllocatorType& GetAllocator();
+            std::shared_ptr<rapidjson::Document> doc;
+    };
+
+    class JsonMember : JsonDoc
     {
     public:
-        JsonMember(const rapidjson::Value::Member &member) : member_(member) {}
+        JsonMember(std::shared_ptr<rapidjson::Document> doc, rapidjson::Value::Member &member) : JsonDoc(doc), member_(member) {}
         ~JsonMember() = default;
         
         std::string key();
         std::shared_ptr<JsonValue> value();
 
     private:
-        const rapidjson::Value::Member &member_;
+        rapidjson::Value::Member &member_;
     };
 
     MAKE_SHARED_PTR(JsonMember)
 
-    class JsonValue
+
+    class JsonValue : JsonDoc
     {
     public:
-        JsonValue(const rapidjson::Value &value) : value_(value) {}
+        JsonValue(std::shared_ptr<rapidjson::Document> doc, rapidjson::Value &value) : JsonDoc(doc), value_(value) {}
         ~JsonValue() = default;
         
-        std::shared_ptr<JsonValue> get(const std::string&);
-        std::shared_ptr<JsonValue> get(size_t);
+        std::shared_ptr<JsonValue> getObj(const std::string&);
+        std::shared_ptr<JsonValue> getElement(size_t);
         std::shared_ptr<JsonMember> getMember(size_t);
+
         template <class T>
         T value();
+
+        template<class T>
+        void addMember(JKey key, const T& value);
+
+        template<class T>
+        std::shared_ptr<std::vector<std::shared_ptr<T>>> getMembers(size_t max = 0)
+        {
+            auto memberList = std::make_shared<std::vector<std::shared_ptr<T>>>();
+            for (auto& member : value_.GetObject()) {
+                if (max && memberList->size() >= max)
+                {
+                    break;
+                }
+                auto jsonMember = std::make_shared<JsonMember>(doc, member);
+                auto t = std::make_shared<T>();
+                t->fromJson(jsonMember);
+                memberList->push_back(t);
+            }
+
+            return memberList;
+        }
+
+        void addElement(const std::shared_ptr<JsonValizable>);
 
         std::shared_ptr<JsonValue> operator[](const std::string&);
         std::shared_ptr<JsonValue> operator[](size_t);
@@ -46,73 +83,63 @@ namespace granada
         bool empty();
 
     private:
-        const rapidjson::Value &value_;
+        rapidjson::Value &value_;
     };
     MAKE_SHARED_PTR(JsonValue)
 
-    class Json
+    class JsonValizable
     {
     public:
-        template <class T>
-        Json(std::shared_ptr<T> t): doc_(std::make_shared<rapidjson::Document>())
-        {
-            t->toJsonMember(doc_);
+        ~JsonValizable() = default;
+        virtual void toJson(JsonValuePtr) const = 0;
+        virtual void fromJson(JsonValuePtr) = 0;
+        virtual void fromJson(JsonMemberPtr) = 0;
+    };
+    MAKE_SHARED_PTR(JsonValizable)
+
+
+    class Json : JsonDoc
+    {
+    public:
+        Json() : JsonDoc(std::make_shared<rapidjson::Document>()) {
+            doc->SetObject();
         }
 
         Json(const std::string &);
         bool hasError();
         unsigned int getError();
-        Json() : doc_(std::make_shared<rapidjson::Document>()) {}
         ~Json()
         {
             LOG_DEBUG("Json destroyed");
         }
 
         JsonValuePtr get(const std::string &);
-        JsonValuePtr get(size_t i);
+        JsonValuePtr getElement(size_t);
         JsonValuePtr operator[](const std::string &field);
-        JsonValuePtr operator[](size_t i);
-
+        JsonValuePtr operator[](size_t);
 
         bool isArray();
-
         bool isObj();
-
         size_t size();
-
         void dump(std::string &out);
+
+        template<class T>
+        void addMember(JKey key, const T& value);
+        void addObjMember(JKey key, const JsonValizablePtr);
+        void addArrayMember(JKey key, const JsonValizablePtr);
 
     private:
         void parse(const std::string &str);
-        std::shared_ptr<rapidjson::Document> doc_;
-        template <class T>
-        bool get(rapidjson::Document &, T &t);
     };
 
     MAKE_SHARED_PTR(Json)
 
-    template<class T>
-    class JsonDocizable : public std::enable_shared_from_this<T>
+    class JsonDocizable
     {
     public:
         ~JsonDocizable() = default;
-        virtual void toJsonMember(std::shared_ptr<rapidjson::Document>) const = 0;
-        void dump(std::string &out) const
-        {
-            auto json = granada::Json(sharedT());
-            json.dump(out);
-        }
-    private:
-        std::shared_ptr<T const> sharedT() const
-        {
-            return this->shared_from_this();
-        }
-    };
-    class JsonValizable
-    {
-    public:
-        ~JsonValizable() = default;
-        virtual void toJsonMember(rapidjson::Value&, rapidjson::Document::AllocatorType &)  const = 0;
+        virtual void toJson(JsonPtr) const = 0;
+        void dump(std::string &out) const;
     };
 
     extern JsonPtr loadJson(const std::string &);    
