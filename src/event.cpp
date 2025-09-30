@@ -1,6 +1,7 @@
 #include "event.hpp"
 #include <string>
 #include <cstdint>
+#include <util.hpp>
 
 #define EVENT_SYSTEM_DESC_LENTH_BIT_COUNT 6
 #define EVENT_SYSTEM_DESC_LENTH_BITS 0x3F // 0B00111111
@@ -30,10 +31,10 @@ const delay_t granada::events::Event::delay() const
     bitcout_t sysDescBitcount = sysDescBitCount();
 
 
-    delay_t d = static_cast<delay_t>(desc_ >> EVENT_SYSTEM_DESC_LENTH_BIT_COUNT);
+    event_desc desc = desc_ >> EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;
     size_t delayBitsCount = sysDescBitcount - EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;
-    d = d & (1 << delayBitsCount) - 1;
-    return d;
+    desc = desc & (1LL << delayBitsCount) - 1;
+    return desc;
 }
 
 const granada::uuid granada::events::Event::poster() const
@@ -65,7 +66,7 @@ event_desc granada::events::Event::sysInfo(delay_t delay, active_t active)
 
     event_desc desc = delay;
     desc = desc << EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;
-    size_t minBytesRequired = Event::minBytesRequired(delay);
+    size_t minBytesRequired = granada::utils::NumUtil::minBytesRequired(delay);
     size_t minBitsRequired = minBytesRequired * 8;
 
     desc = desc | minBitsRequired + EVENT_SYSTEM_DESC_LENTH_BIT_COUNT; // minBytesRequired(delay) * 8 + 6

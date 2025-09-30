@@ -31,6 +31,19 @@ namespace granada
             }
         };
 
+        class NumUtil
+        {
+            public:
+            template<class num>
+            static size_t minBytesRequired(num value)
+            {
+                if (value == 0) return 1;
+
+                int bits = sizeof(num) * 8 - __builtin_clz(value);
+                return (bits + 7) / 8;
+            }
+        };
+
         class DateUtil
         {
             public:

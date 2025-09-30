@@ -11,3 +11,6 @@
 	path = 3rd_party/gumbo
 	url = https://github.com/shiwk/gumbo-parser.git
     branch = dev
+[submodule "3rd_party/gtest"]
+	path = 3rd_party/gtest
+	url = https://github.com/google/googletest.git

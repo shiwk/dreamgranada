@@ -32,14 +32,7 @@ namespace granada
 
             static event_desc sysInfo(delay_t delay, active_t period);
             static event_desc concatenate(event_desc sys, event_desc usr);
-            template<class num>
-            static size_t minBytesRequired(num value)
-            {
-                if (value == 0) return 1;
-
-                int bits = sizeof(num) * 8 - __builtin_clz(value);
-                return (bits + 7) / 8;
-            }
+            
         public:
             Event(const uuid &poster, delay_t delay, active_t period, event_desc usr)
                 : desc_(concatenate(sysInfo(delay, period), usr)),

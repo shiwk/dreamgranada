@@ -30,3 +30,7 @@ find_package(Threads REQUIRED)
 target_include_directories(dreamgranada PUBLIC ${BOOST_ROOT_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 target_link_libraries(dreamgranada PUBLIC granada_comm granada_utils glog::glog fmt::fmt Threads::Threads)
+
+
+add_subdirectory(${GRANADA_3RD_PARTY}/gtest)
+add_subdirectory(test)
