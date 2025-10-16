@@ -31,7 +31,7 @@ namespace granada
 
     void OfficeCenter::onStop(events::EventPtr event)
     {
-        LOG_DEBUG_FMT("Received event {} {}", event->name(), utils::Format::dumpB(event->desc()));
+        LOG_DEBUG_FMT("Received event {} {}", event->name(), utils::format::dumpB(event->desc()));
         
         event_desc desc = event->usrDesc();
 
@@ -60,7 +60,7 @@ namespace granada
 
     void OfficeCenter::onSubscribe(NewSubscriberLoginEventPtr event)
     {
-        LOG_DEBUG_FMT("Subscribing role id = {}, ehm = {}", event->subscriber_->id(), utils::Format::dumpB(event->subscriber_->ehm()));
+        LOG_DEBUG_FMT("Subscribing role id = {}, ehm = {}", event->subscriber_->id(), utils::format::dumpB(event->subscriber_->ehm()));
         subscribers_.emplace_back(event->subscriber_);
     }
     

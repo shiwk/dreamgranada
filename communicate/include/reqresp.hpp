@@ -8,11 +8,13 @@
 #include "common.hpp"
 #include <boost/asio.hpp>
 
-
 #define HTTP "http"
 #define HTTPS "https"
 #define CHUNKED "chunked"
 #define TRANSFER_ENCODING "Transfer-Encoding"
+#define Content_Length "Content-Length"
+#define User_Agent "User-Agent"
+#define Connection "Connection"
 
 namespace granada
 {
@@ -26,6 +28,9 @@ namespace granada
             DELETE,
             HEAD
         };
+
+        using HeaderLine = std::string;
+        using StatusLine = std::string;
 
         struct Request
         {
@@ -78,10 +83,12 @@ namespace granada
         };
 
         MAKE_SHARED_PTR(Response);
-
+        extern const std::string methodToString(const Method &);
+        extern bool parseHeaderLine(const HeaderLine &, ResponsePtr &);
+        extern bool parseStatusLine(const StatusLine &, ResponsePtr &);
+        extern void writeQueryStream(const http::RequestPtr &request, std::ostream &stream, bool sort = false);
         using ResponseHandler = std::function<void(const boost::system::error_code &, ResponsePtr &)>;
-        using HeaderLine = std::string;
-        using StatusLine = std::string;
+        extern bool shouldReadBody(const http::ResponsePtr &);
     }
 }
 

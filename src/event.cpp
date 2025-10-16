@@ -66,7 +66,7 @@ event_desc granada::events::Event::sysInfo(delay_t delay, active_t active)
 
     event_desc desc = delay;
     desc = desc << EVENT_SYSTEM_DESC_LENTH_BIT_COUNT;
-    size_t minBytesRequired = granada::utils::NumUtil::minBytesRequired(delay);
+    size_t minBytesRequired = granada::utils::nums::minBytesRequired(delay);
     size_t minBitsRequired = minBytesRequired * 8;
 
     desc = desc | minBitsRequired + EVENT_SYSTEM_DESC_LENTH_BIT_COUNT; // minBytesRequired(delay) * 8 + 6

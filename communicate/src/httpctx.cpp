@@ -2,86 +2,53 @@
 #include "logger.hpp"
 #include <openssl/err.h>
 #include <encode.hpp>
+#include <util.hpp>
 
-using namespace granada::http;
+namespace http = granada::http;
 
-Request::Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent, const std::string &connection, const std::string &body, bool https)
-    : https(https), method(method), path(path), host(host), user_agent(user_agent), body(body), connection(connection)
+ssl::context &http::getSSLCtx()
 {
-}
-
-void Request::addHeader(const std::string &header, const std::string &value)
-{
-    headers[header] = value;
-}
-
-void Request::addQuery(const std::string &key, const std::string &value)
-{
-    queries[key] = value;
-}
-
-void HttpContext::writeQueryStream(std::unordered_map<std::string, std::string> &queries, std::ostream &stream)
-{
-    for (auto it = queries.begin(); it != queries.end(); ++it)
+    static asio::ssl::context ctx(asio::ssl::context::tls_client);
+    static bool ctxInit = []
     {
-        if (it != queries.begin())
-        {
-            stream << "&";
-        }
-        stream << granada::urlEncode(it->first) << "=" << granada::urlEncode(it->second);
-    }
-}
+        ctx.set_options(
+            asio::ssl::context::default_workarounds |
+            asio::ssl::context::no_sslv2 |
+            asio::ssl::context::no_sslv3 |
+            asio::ssl::context::no_tlsv1 |
+            asio::ssl::context::no_tlsv1_1);
+        ctx.set_default_verify_paths();
+        LOG_DEBUG("ssl context initialized");
+        return true;
+    }();
 
-void HttpContext::writeResqHeaders(std::unordered_map<std::string, std::string> &headers, std::ostream &stream)
-{
-    for (auto it = headers.begin(); it != headers.end(); ++it)
-    {
-        stream << it->first << ": " << it->second << "\r\n";
-    }
-}
-
-ssl::context &HttpContext::getSSLCtx()
-{
-    static asio::ssl::context ctx(asio::ssl::context::tlsv13);
     return ctx;
 }
 
-void HttpContext::prepareRequest(const RequestPtr &request)
+void http::HttpBasicContext::prepare(const http::RequestPtr &request)
 {
-    if (SSL_set_tlsext_host_name(sock.native_handle(), request->host.c_str()) != 1) {
-        LOG_ERROR("Failed to set SNI hostname.");
+    std::ostream reqStream(&reqBuff);
+    reqStream << http::methodToString(request->method) << " " << request->path << (request->queries.empty() ? "" : "?");
+    // write queries
+    http::writeQueryStream(request, reqStream);
+
+    reqStream << " HTTP/1.1\r\n";
+    reqStream << "Host: " << request->host << "\r\n";
+
+    // write headers
+    for (auto it = request->headers.begin(); it != request->headers.end(); ++it)
+    {
+        reqStream << it->first << ": " << it->second << "\r\n";
     }
 
-    std::ostream reqStream(&reqBuff);
-    std::ostringstream queryStream;
-    size_t contentLength = 0;
-    std::string queryStr;
+    reqStream << "\r\n";
+
+    // write body
     switch (request->method)
     {
-    case Method::GET:
-        reqStream << "GET " << request->path << (request->queries.empty() ? "" : "?");
-        writeQueryStream(request->queries, reqStream);
-        reqStream << " HTTP/1.1\r\n";
-        reqStream << "Host: " << request->host << "\r\n";
-        writeResqHeaders(request->headers, reqStream);
-        reqStream << "User-Agent: " << request->user_agent << "\r\n";
-        reqStream << "Connection: " << request->connection << "\r\n";
-        reqStream << "\r\n";
-
-        break;
-
+    case Method::PUT:
     case Method::POST:
-        reqStream << "POST " << request->path << (request->queries.empty() ? "" : "?");
-        writeQueryStream(request->queries, reqStream);
-        reqStream << " HTTP/1.1\r\n";
-        reqStream << "Host: " << request->host << "\r\n";
-        writeResqHeaders(request->headers, reqStream);
-        reqStream << "Content-Length: " << request->body.size() << "\r\n";
-        reqStream << "User-Agent: " << request->user_agent << "\r\n";
-        reqStream << "Connection: " << request->connection << "\r\n";
-        reqStream << "\r\n";
         reqStream << request->body;
-        
         break;
 
     default:
@@ -93,155 +60,60 @@ void HttpContext::prepareRequest(const RequestPtr &request)
     std::string content(asio::buffers_begin(bufs), asio::buffers_end(bufs));
     LOG_DEBUG_FMT("Request stream:\n{}", content);
 #endif
+
+    timeout(request->timeout);
 }
 
-void HttpContext::complete(const error_code &error)
+void http::safeCloseSsl(std::shared_ptr<sSock> &sock)
 {
-    if (error != boost::asio::error::eof)
+    boost::system::error_code ignored_ec;
+    if (sock->lowest_layer().is_open())
     {
-        LOG_ERROR("Httpctx error occured.");
-        errorHandler(error);
-        cleanUp();
-        return;
+        sock->lowest_layer().shutdown(tcp::socket::shutdown_both, ignored_ec);
+        sock->lowest_layer().close(ignored_ec);
+        LOG_DEBUG("Socket safe closed.");
     }
-
-    respHandler(error, response);
-    cleanUp();
 }
 
-bool HttpContext::parseStatusLine(const StatusLine &line, ResponseStatusPtr resp)
+void http::HttpBasicContext::timeout(uint64_t second)
 {
-    std::vector<std::string> tokens;
-    HttpContextUtil::split(line, ' ', tokens);
-
-    if (tokens.size() < 3)
-    {
-        LOG_ERROR_FMT("Invalid status line: {}", line);
-        for (const auto &token : tokens)
-        {
-            LOG_ERROR_FMT("Token: {}", token);
-        }
-        return false;
-    }
-    std::istringstream stream(line);
-
-    stream >> resp->version;
-
-    stream >> resp->statusCode;
-
-    std::getline(stream, resp->statusMessage);
-
-    if (!resp->statusMessage.empty() && resp->statusMessage[0] == ' ')
-    {
-        resp->statusMessage.erase(0, 1);
-    }
-    return true;
-}
-
-std::shared_ptr<asio::steady_timer> granada::http::HttpContext::getTimer()
-{
-    std::shared_ptr<asio::steady_timer> ctxTimer = std::make_shared<asio::steady_timer>(*io_context_, std::chrono::seconds(timeout_));
+    timer_->expires_after(std::chrono::seconds(second));
     auto ctx = shared_from_this();
-    ctxTimer->async_wait([ctx, ctxTimer](const error_code &ec)
-                                          {
-                                            if (!ec)
-                                            {
-                                                LOG_ERROR_FMT("httpctx timeout. {}, timeout: {}", ec.message(), ctx->timeout_);
-                                                ctx->cleanUp();
-                                            }
-                                            ctxTimer->cancel();
-                                        });
-    return ctxTimer;
-}
-
-bool HttpContext::parseHeaders(const std::vector<HeaderLine> &lines, RespHeaders &headers)
-{
-    for (const auto &line : lines)
-    {
-        if (!parseHeaderLine(line, headers))
+    timer_->async_wait(
+        [ctx](const error_code &ec)
         {
-            return false;
-        }
-    }
-
-    return true;
+            if (ec == asio::error::operation_aborted)
+            {
+                // canceled
+                LOG_ERROR_FMT("httpctx timeout: {}", ec.message());
+            }
+            ctx->cleanUp();
+        });
 }
 
-bool granada::http::HttpContext::parseHeaderLine(const HeaderLine &line, RespHeaders &headers)
-{
-    size_t pos = line.find(':');
-    if (pos == std::string::npos)
-    {
-        LOG_ERROR_FMT("Invalid header line: {}", line);
-        return false;
-    }
-
-    std::string key = HttpContextUtil::strip(std::move(line.substr(0, pos)));
-    std::string value = HttpContextUtil::strip(line.substr(pos + 1));
-    headers[key] = value;
-    // LOG_DEBUG_FMT("header {}:{}", key, value);
-
-    return true;
-}
-
-void HttpContextUtil::split(const std::string &s, const char delimiter, std::vector<std::string> &tokens)
-{
-    std::string token;
-    std::istringstream tokenStream(s);
-
-    while (std::getline(tokenStream, token, delimiter))
-    {
-        tokens.push_back(token);
-    }
-}
-
-std::string granada::http::HttpContextUtil::strip(const std::string &str)
-{
-    auto start = std::find_if_not(str.begin(), str.end(), ::isspace);
-    auto end = std::find_if_not(str.rbegin(), str.rend(), ::isspace).base();
-
-    return (start < end) ? std::move(std::string(start, end)) : "";
-}
-
-void granada::http::HttpContext::dumpRequest(RequestPtr request)
+void http::HttpBasicContext::dumpRequest()
 {
     std::istream is(&reqBuff);
     std::string data((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
-    LOG_DEBUG_FMT("Request stream: {}", data);
+    LOG_DEBUG_FMT("Request stream:\n{}", data);
     reqBuff.consume(reqBuff.size());
     is.clear();
     is.seekg(0);
 }
 
-void granada::http::HttpContext::safeClose()
-{
-    boost::system::error_code ignored_ec;
-    if (sock.lowest_layer().is_open())
-    {
-        sock.lowest_layer().shutdown(tcp::socket::shutdown_both, ignored_ec);
-        sock.lowest_layer().close(ignored_ec);
-        LOG_DEBUG("Socket safe closed.");
-    }
-}
-
-HttpContext::~HttpContext()
-{
-    // cleanUp();
-    LOG_DEBUG("HttpContext destroyed.");
-}
-
-void HttpContext::cleanUp()
+template <>
+void http::HttpContext<http::sSock>::cleanUp()
 {
     std::string remote_endpoint;
     try
     {
-        if (!sock.lowest_layer().is_open())
+        if (!sock->lowest_layer().is_open())
         {
             // already closed
             LOG_DEBUG("Socket already closed.");
             return;
         }
-        remote_endpoint = sock.lowest_layer().remote_endpoint().address().to_string();
+        remote_endpoint = sock->lowest_layer().remote_endpoint().address().to_string();
     }
     catch (const std::exception &e)
     {
@@ -250,11 +122,13 @@ void HttpContext::cleanUp()
     }
     LOG_DEBUG_FMT("Starting SSL shutdown to {}", remote_endpoint);
     auto timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
-    // timeout 
+    // timeout
     timer->expires_after(std::chrono::seconds(5));
-    auto ctx = shared_from_this();
-    sock.async_shutdown(
-        [ctx, timer](const boost::system::error_code& ec) {
+    auto ctx = std::static_pointer_cast<HttpContext<http::sSock>>(shared_from_this());
+
+    sock->async_shutdown(
+        [ctx, timer](const boost::system::error_code &ec)
+        {
             // cancel timer
             timer->cancel();
             if (!ec)
@@ -262,11 +136,12 @@ void HttpContext::cleanUp()
                 LOG_DEBUG("SSL stream shutdown succeed.");
                 return;
             }
-            
+
             std::string sslErrString(256, 0);
 
             unsigned long err = ERR_get_error();
-            if (err != 0){
+            if (err != 0)
+            {
                 ERR_error_string_n(err, &sslErrString[0], 256);
             }
             const std::string errMsg = ec.message();
@@ -279,39 +154,90 @@ void HttpContext::cleanUp()
                 ec == boost::system::error_code(static_cast<int>(boost::system::errc::bad_file_descriptor), boost::system::generic_category()))
             {
                 LOG_WARNING("Socket already closed (bad_file_descriptor).");
-                return ctx->safeClose();
+                return http::safeCloseSsl(ctx->sock);
             }
-            if (ec == boost::asio::ssl::error::stream_truncated) {
+            if (ec == boost::asio::ssl::error::stream_truncated)
+            {
                 LOG_INFO("Stream truncated during SSL shutdown; treating as normal close.");
-                return ctx->safeClose();
+                return http::safeCloseSsl(ctx->sock);
             }
             if (errMsg.find("application data after close notify") != std::string::npos ||
                 sslErrString.find("application data after close notify") != std::string::npos)
             {
                 LOG_WARNING("Application data after close_notify detected. Treating as closed.");
-                return ctx->safeClose();
+                return http::safeCloseSsl(ctx->sock);
             }
             if (errMsg.find("shutdown while in init") != std::string::npos ||
                 sslErrString.find("shutdown while in init") != std::string::npos)
             {
                 LOG_ERROR("Called SSL_shutdown while SSL in init/handshake state. Programming error: ensure handshake finished before shutdown.");
-                return ctx->safeClose();
+                return http::safeCloseSsl(ctx->sock);
             }
             if (errMsg.find("uninitialized") != std::string::npos ||
                 sslErrString.find("uninitialized") != std::string::npos)
             {
                 LOG_ERROR("SSL_shutdown reported 'uninitialized'. Likely using freed/uninitialized SSL object. Fix lifecycle management.");
-                return ctx->safeClose();
+                return http::safeCloseSsl(ctx->sock);
             }
-            
+
             LOG_ERROR_FMT("SSL shutdown error: {}, OpenSSL error: {}", errMsg, sslErrString);
-            ctx->safeClose();
+            http::safeCloseSsl(ctx->sock);
         });
 
-    timer->async_wait([ctx](const boost::system::error_code& ec) {
+    timer->async_wait([ctx](const boost::system::error_code &ec)
+                      {
         if (!ec) {
             LOG_DEBUG("Shutdown timed out, closing socket");
-            return ctx->safeClose();
-        }
-    });
+            return http::safeCloseSsl(ctx->sock);
+        } });
+}
+
+template <>
+void http::HttpContext<http::tSock>::cleanUp()
+{
+    if (!sock->is_open())
+    {
+        LOG_DEBUG("Socket already closed.");
+        return;
+    }
+    LOG_DEBUG("Closing socket.");
+    sock->shutdown(tcp::socket::shutdown_both);
+    sock->close();
+}
+
+template <>
+http::HttpContext<tcp::socket>::HttpContext(io_contextPtr &io_context, const http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
+    : HttpBasicContext(io_context, request, respHandler, errorHandler), sock(std::make_shared<tcp::socket>(*io_context))
+{
+}
+
+template <>
+http::HttpContext<http::sSock>::HttpContext(io_contextPtr &io_context, const http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
+    : HttpBasicContext(io_context, request, respHandler, errorHandler), sock(std::make_shared<http::sSock>(*io_context, getSSLCtx()))
+{
+}
+
+http::HttpBasicContext::HttpBasicContext(io_contextPtr &io_context, const http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
+    : io_context_(io_context), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler), timer_(std::make_shared<asio::steady_timer>(*io_context))
+{
+}
+
+http::HttpBasicContext::~HttpBasicContext()
+{
+    LOG_DEBUG("HttpBasicContext destroyed.");
+}
+
+void http::HttpBasicContext::complete(const error_code &error, ResponsePtr response)
+{
+    timer_->cancel();
+    if (error != boost::asio::error::eof)
+    {
+        LOG_ERROR("Httpctx error occured.");
+        errorHandler(error);
+        // cleanUp();
+        return;
+    }
+
+    respHandler(error, response);
+    // cleanUp();
 }

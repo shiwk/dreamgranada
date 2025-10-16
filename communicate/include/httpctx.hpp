@@ -11,7 +11,6 @@
 #include "common.hpp"
 #include "reqresp.hpp"
 
-
 using namespace boost::asio;
 namespace asio = boost::asio;
 namespace ssl = boost::asio::ssl;
@@ -24,58 +23,58 @@ namespace granada
     namespace http
     {
         MAKE_SHARED_PTR(io_context);
-        struct HttpContextUtil
+
+        struct HttpBasicContext : public std::enable_shared_from_this<HttpBasicContext>
         {
-            static void split(const std::string &, const char, std::vector<std::string> &);
-            static std::string strip(const std::string &str);
-        };
-        
-        struct HttpContext : std::enable_shared_from_this<HttpContext>
-        {
-        private:
-            io_contextPtr io_context_;
-            int8_t timeout_;
-            void prepareRequest(const RequestPtr &);
-            void writeQueryStream(std::unordered_map<std::string, std::string> &, std::ostream &);
-            void writeResqHeaders(std::unordered_map<std::string, std::string> &, std::ostream &);
-            void cleanUp();
-            // asio::steady_timer contextTimer_;
-
-        public:
-            HttpContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
-                : io_context_(io_context), timeout_(request->timeout), sock(*io_context, getSSLCtx()), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler), response(std::make_shared<Response>())
-                // , contextTimer_(*io_context, std::chrono::seconds(10))
-                {
-                    prepareRequest(request);
-                }
-
-            HttpContext(const HttpContext &) = delete;
-            ~HttpContext();
-            HttpContext &operator=(const HttpContext &) = delete;
-            void complete(const error_code &);
-            void handleError(const error_code &);
-            static ssl::context &getSSLCtx();
-
+            HttpBasicContext(io_contextPtr &io_context, const RequestPtr &, const ResponseHandler &respHandler, const ErrorHandler &errorHandler);
+            HttpBasicContext(const HttpBasicContext &) = delete;
+            HttpBasicContext &operator=(const HttpBasicContext &) = delete;
+            virtual ~HttpBasicContext();
+            void timeout(uint64_t);
+            void prepare(const http::RequestPtr &);
+            void complete(const error_code &, ResponsePtr response);
             asio::streambuf reqBuff;
             asio::streambuf respBuff;
-            ResponsePtr response;
-            ssl::stream<tcp::socket> sock;
+
+        protected:
+            const io_contextPtr io_context_;
             ResponseHandler respHandler;
             ErrorHandler errorHandler;
-            StatusLine respStatusLine;
+            void dumpRequest();
+            virtual void cleanUp() = 0;
+            // const bool https;
 
-            static bool parseHeaderLine(const HeaderLine &, RespHeaders &);
-            static bool parseStatusLine(const StatusLine &, ResponseStatusPtr);
-            // static void startTimer(std::shared_ptr<HttpContext>);
-            std::shared_ptr<asio::steady_timer> getTimer();
         private:
-            // bool getResponse(ResponsePtr &);
-            static bool parseHeaders(const std::vector<HeaderLine> &, RespHeaders &);
-            void dumpRequest(RequestPtr request);
-            void safeClose();
+            std::shared_ptr<asio::steady_timer> timer_;
         };
 
-        MAKE_SHARED_PTR(HttpContext);
+        MAKE_SHARED_PTR(HttpBasicContext);
+
+        template <class T> 
+        struct HttpContext : public HttpBasicContext
+        {
+            HttpContext(io_contextPtr &io_context, const RequestPtr &, const ResponseHandler &respHandler, const ErrorHandler &errorHandler);
+            HttpContext(const HttpContext &) = delete;
+            ~HttpContext() = default;
+            HttpContext &operator=(const HttpContext &) = delete;
+            std::shared_ptr<T> sock;
+
+        protected:
+            void cleanUp() override;
+        };
+
+        MAKE_SHARED_PTR_ALIAS_1(HttpContext);
+
+        template <class T> 
+        inline HttpContextPtr<T> createContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
+        {
+            return std::make_shared<HttpContext<T>>(io_context, request, respHandler, errorHandler);
+        }
+        using tSock = tcp::socket;
+        using sSock = ssl::stream<tSock>;
+        extern void safeCloseSsl(std::shared_ptr<sSock> &);
+        extern ssl::context &getSSLCtx();
     } // namespace http
 } // namespace granada
+
 #endif

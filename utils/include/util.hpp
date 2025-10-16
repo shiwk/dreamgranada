@@ -12,11 +12,10 @@ namespace granada
 {
     namespace utils
     {
-        class Format
+        namespace format
         {
-        public:
             template <class T>
-            static inline std::string dumpHex(T t)
+            inline std::string dumpHex(T t)
             {
                 std::stringstream ss;
                 ss << "0X" << std::setw(4) << std::setfill('0') << std::hex << t;
@@ -24,38 +23,40 @@ namespace granada
             }
             
             template <class T>
-            static inline std::string dumpB(T t)
+            inline std::string dumpB(T t)
             {
                 std::string binaryString = std::bitset<64>(t).to_string();
                 return std::move("0B" + binaryString);
             }
+        }
+
+        namespace string
+        {
+            extern std::string toLower(const std::string&);
+            extern std::string trim(const std::string&);
+            extern bool startsWith(const std::string&, const std::string& prefix);
         };
 
-        class NumUtil
+        namespace nums
         {
-            public:
             template<class num>
-            static size_t minBytesRequired(num value)
+            inline size_t minBytesRequired(num value)
             {
                 if (value == 0) return 1;
 
                 int bits = sizeof(num) * 8 - __builtin_clz(value);
                 return (bits + 7) / 8;
             }
+            extern int getRandomInt(int min, int max);
+            extern double getRandomDouble(double min, double max);
         };
 
-        class DateUtil
+        namespace date
         {
-            public:
-            static time_t dateToTimestamp(const std::string &dateStr, const std::string &dateFmt);
-            static uint64_t msUntilNext(int target_hour, int target_minute = 0, int target_second = 0);
-        };
-
-        class RandomUtil
-        {
-        public:
-            static int getRandomInt(int min, int max);
-            static double getRandomDouble(double min, double max);
+            extern time_t dateToTimestamp(const std::string &dateStr, const std::string &dateFmt);
+            extern const std::string timestampToDate(const std::time_t &, const std::string &dateFmt);
+            extern time_t getLocalTime();
+            extern uint64_t msUntilNext(int target_hour, int target_minute = 0, int target_second = 0);
         };
     } // namespace utils
 } // namespace granada

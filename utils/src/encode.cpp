@@ -5,9 +5,12 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/err.h>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
 #include <vector>
 
-const std::string granada::base64Encode(const std::string &original)
+const std::string granada::utils::encode::base64Encode(const std::string &original)
 {
     // LOG_INFO_FMT("base64Encode original: {}", original);
     BIO *bio = BIO_new(BIO_s_mem());
@@ -32,7 +35,7 @@ const std::string granada::base64Encode(const std::string &original)
     return result;
 }
 
-const std::string granada::urlEncode(const std::string &src)
+const std::string granada::utils::encode::urlEncode(const std::string &src)
 {
     static const char* hex = "0123456789ABCDEF";
     std::string output;
@@ -55,7 +58,7 @@ const std::string granada::urlEncode(const std::string &src)
     return output;
 }
 
-const std::string granada::hmacSha256(const std::string &key, const std::string &data)
+const std::string granada::utils::encode::hmacSha256(const std::string &key, const std::string &data)
 {
     unsigned int len = SHA256_DIGEST_LENGTH;
     std::vector<unsigned char> result(len);
@@ -65,3 +68,36 @@ const std::string granada::hmacSha256(const std::string &key, const std::string 
 
     return std::string(result.begin(), result.begin() + len);
 }
+
+const std::string granada::utils::encode::sha256(const std::string &data)
+{
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char *>(data.c_str()), data.length(), hash);
+    std::stringstream ss;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    return ss.str();
+}
+
+const std::string granada::utils::encode::toHex(const std::string &input, bool lowerCase)
+{
+    std::string output;
+    output.reserve(input.size() * 2);
+    for (unsigned char c : input)
+    {
+        if (lowerCase)
+        {
+            output.push_back(lowerHexDigits[c >> 4]);
+            output.push_back(lowerHexDigits[c & 15]);
+        }
+        else
+        {
+            output.push_back(upperHexDigits[c >> 4]);
+            output.push_back(upperHexDigits[c & 15]);
+        }
+    }
+    return output;
+}
+
+const char* granada::utils::encode::upperHexDigits = "0123456789ABCDEF";
+const char* granada::utils::encode::lowerHexDigits = "0123456789abcdef";
