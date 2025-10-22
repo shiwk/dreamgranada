@@ -17,7 +17,7 @@ namespace granada
             MAKE_SHARED_PTR(io_context);
 
         private:
-            std::future<void> io_thread_;
+            // std::future<void> io_thread_;
             std::function<void(EventPtr)> handlerCallback_;
             std::vector<BusStopPtr> busStops_;
             static void onTimeout(std::shared_ptr<asio::steady_timer> &);

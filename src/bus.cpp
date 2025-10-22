@@ -26,7 +26,7 @@ namespace granada
             LOG_INFO("Bus destructor");
             auto& busEngine = getBusEngine();
             busEngine->stop();
-            io_thread_.wait();
+            // io_thread_.wait();
         }
 
         void Bus::setBusStop(std::function<void(EventPtr)> handlerCallback)
