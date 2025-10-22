@@ -26,7 +26,7 @@ namespace granada
 
         struct HttpBasicContext : public std::enable_shared_from_this<HttpBasicContext>
         {
-            HttpBasicContext(io_contextPtr &io_context, const RequestPtr &, const ResponseHandler &respHandler, const ErrorHandler &errorHandler);
+            HttpBasicContext(io_contextPtr &io_context, const RequestPtr &, ResponseHandler &&respHandler, ErrorHandler &&errorHandler);
             HttpBasicContext(const HttpBasicContext &) = delete;
             HttpBasicContext &operator=(const HttpBasicContext &) = delete;
             virtual ~HttpBasicContext();
@@ -42,7 +42,6 @@ namespace granada
             ErrorHandler errorHandler;
             void dumpRequest();
             virtual void cleanUp() = 0;
-            // const bool https;
 
         private:
             std::shared_ptr<asio::steady_timer> timer_;
@@ -53,7 +52,7 @@ namespace granada
         template <class T> 
         struct HttpContext : public HttpBasicContext
         {
-            HttpContext(io_contextPtr &io_context, const RequestPtr &, const ResponseHandler &respHandler, const ErrorHandler &errorHandler);
+            HttpContext(io_contextPtr &io_context, const RequestPtr &, ResponseHandler &&respHandler, ErrorHandler &&errorHandler);
             HttpContext(const HttpContext &) = delete;
             ~HttpContext() = default;
             HttpContext &operator=(const HttpContext &) = delete;
@@ -66,9 +65,9 @@ namespace granada
         MAKE_SHARED_PTR_ALIAS_1(HttpContext);
 
         template <class T> 
-        inline HttpContextPtr<T> createContext(io_contextPtr &io_context, RequestPtr &request, const ResponseHandler &respHandler, const ErrorHandler &errorHandler)
+        inline HttpContextPtr<T> createContext(io_contextPtr &io_context, RequestPtr &request, ResponseHandler &&respHandler, ErrorHandler &&errorHandler)
         {
-            return std::make_shared<HttpContext<T>>(io_context, request, respHandler, errorHandler);
+            return std::make_shared<HttpContext<T>>(io_context, request, std::move(respHandler), std::move(errorHandler));
         }
         using tSock = tcp::socket;
         using sSock = ssl::stream<tSock>;

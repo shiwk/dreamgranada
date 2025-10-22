@@ -11,7 +11,7 @@ namespace granada
 {
     namespace http
     {
-        extern void asyncRequest(io_contextPtr &, RequestPtr &, const ResponseHandler &, const ErrorHandler &);
+        extern void asyncRequest(io_contextPtr &, RequestPtr &, ResponseHandler &&, ErrorHandler &&);
     }
 }
 

@@ -5,7 +5,7 @@
 using namespace boost;
 namespace http = granada::http;
 
-void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &request, const http::ResponseHandler &requestCallback, const http::ErrorHandler &errorHandler)
+void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &request, http::ResponseHandler &&requestCallback, http::ErrorHandler &&errorHandler)
 {
     auto https = request->https;
     LOG_INFO_FMT("Requesting {}://{}{}", https ? HTTPS : HTTP, request->host, request->path);
@@ -13,7 +13,7 @@ void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &reque
 
     if (https)
     {
-        auto context = http::createContext<http::sSock>(io_context, request, requestCallback, errorHandler);
+        auto context = http::createContext<http::sSock>(io_context, request, std::move(requestCallback), std::move(errorHandler));
         context->prepare(request);
         if (SSL_set_tlsext_host_name(context->sock->native_handle(), request->host.c_str()) != 1)
         {
@@ -24,7 +24,7 @@ void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &reque
     }
     else
     {
-        auto context = http::createContext<http::tSock>(io_context, request, requestCallback, errorHandler);
+        auto context = http::createContext<http::tSock>(io_context, request, std::move(requestCallback), std::move(errorHandler));
         context->prepare(request);
         resolver->async_resolve(request->host, HTTP, [context, resolver](const error_code &err, tcp::resolver::results_type endpoints)
                                 { http::onResolve(err, endpoints, context); });

@@ -206,19 +206,19 @@ void http::HttpContext<http::tSock>::cleanUp()
 }
 
 template <>
-http::HttpContext<tcp::socket>::HttpContext(io_contextPtr &io_context, const http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
-    : HttpBasicContext(io_context, request, respHandler, errorHandler), sock(std::make_shared<tcp::socket>(*io_context))
+http::HttpContext<tcp::socket>::HttpContext(io_contextPtr &io_context, const http::RequestPtr &request, http::ResponseHandler &&respHandler, http::ErrorHandler &&errorHandler)
+    : HttpBasicContext(io_context, request, std::move(respHandler), std::move(errorHandler)), sock(std::make_shared<tcp::socket>(*io_context))
 {
 }
 
 template <>
-http::HttpContext<http::sSock>::HttpContext(io_contextPtr &io_context, const http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
-    : HttpBasicContext(io_context, request, respHandler, errorHandler), sock(std::make_shared<http::sSock>(*io_context, getSSLCtx()))
+http::HttpContext<http::sSock>::HttpContext(io_contextPtr &io_context, const http::RequestPtr &request, http::ResponseHandler &&respHandler, http::ErrorHandler &&errorHandler)
+    : HttpBasicContext(io_context, request, std::move(respHandler), std::move(errorHandler)), sock(std::make_shared<http::sSock>(*io_context, getSSLCtx()))
 {
 }
 
-http::HttpBasicContext::HttpBasicContext(io_contextPtr &io_context, const http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
-    : io_context_(io_context), reqBuff(), respBuff(), respHandler(respHandler), errorHandler(errorHandler), timer_(std::make_shared<asio::steady_timer>(*io_context))
+http::HttpBasicContext::HttpBasicContext(io_contextPtr &io_context, const http::RequestPtr &request, http::ResponseHandler &&respHandler, http::ErrorHandler &&errorHandler)
+    : io_context_(io_context), reqBuff(), respBuff(), respHandler(std::move(respHandler)), errorHandler(std::move(errorHandler)), timer_(std::make_shared<asio::steady_timer>(*io_context))
 {
 }
 

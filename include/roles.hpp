@@ -26,7 +26,7 @@ namespace granada
             Poster(events::BusPtr bus) : bus_(bus) {}
             virtual ~Poster() {}
             void post(events::EventPtr event);
-            void asyncRequest3(http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler);
+            void asyncRequest3(http::RequestPtr &request, http::ResponseHandler &&, http::ErrorHandler &&);
 
         protected:
             events::BusWeakPtr bus_;

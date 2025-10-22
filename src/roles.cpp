@@ -11,10 +11,10 @@ namespace granada
         bus_.lock()->board(event);
     }
 
-    void roles::Poster::asyncRequest3(http::RequestPtr &request, const http::ResponseHandler &respHandler, const http::ErrorHandler &errorHandler)
+    void roles::Poster::asyncRequest3(http::RequestPtr &request, http::ResponseHandler &&respHandler, http::ErrorHandler &&errorHandler)
     {
         auto &context = events::Bus::getBusEngine();
-        http::asyncRequest(context, request, respHandler, errorHandler);
+        http::asyncRequest(context, request, std::move(respHandler), std::move(errorHandler));
         LOG_INFO("Request sent.");
     }
 
