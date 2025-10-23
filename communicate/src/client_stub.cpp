@@ -103,7 +103,7 @@ namespace granada
         }
 
         template <class T>
-        void onReadStatusLine(const boost::system::error_code &error, const std::size_t read_size, const HttpContextPtr<T> &context, ResponsePtr response)
+        void onReadStatusLine(const boost::system::error_code &error, const std::size_t readSize, const HttpContextPtr<T> &context, ResponsePtr response)
         {
             if (error)
             {
@@ -111,14 +111,14 @@ namespace granada
                 return finish(context, error, nullptr);
             }
 
-            LOG_DEBUG_FMT("Read status line done. {} bytes", read_size);
+            LOG_DEBUG_FMT("Read status line done. {} bytes", readSize);
 
             // copy and remove characters from the resp buf
             auto &buffer = context->respBuff;
             LOG_DEBUG_FMT("buffer size: len({})", buffer.size());
-            StatusLine statueLine(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + read_size);
+            StatusLine statueLine(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + readSize);
             LOG_DEBUG_FMT("status line: {}", statueLine);
-            buffer.consume(read_size);
+            buffer.consume(readSize);
 
             http::parseStatusLine(statueLine, response);
 
@@ -131,7 +131,7 @@ namespace granada
         }
 
         template <class T>
-        void onReadHeaders(const boost::system::error_code &error, const std::size_t read_size, const HttpContextPtr<T> &context, ResponsePtr response)
+        void onReadHeaders(const boost::system::error_code &error, const std::size_t readSize, const HttpContextPtr<T> &context, ResponsePtr response)
         {
             if (error)
             {
@@ -150,7 +150,7 @@ namespace granada
                 http::parseHeaderLine(headerLine, response);
             }
 
-            LOG_DEBUG_FMT("read header: len({})", read_size);
+            LOG_DEBUG_FMT("read header: len({})", readSize);
             LOG_DEBUG_FMT("buffer size: len({})", buffer.size());
 
             if (!http::shouldReadBody(response))
@@ -174,7 +174,7 @@ namespace granada
         }
 
         template <class T>
-        void onReadIdentityBody(const boost::system::error_code &error, const std::size_t read_size, const HttpContextPtr<T> &context, ResponsePtr response)
+        void onReadIdentityBody(const boost::system::error_code &error, const std::size_t readSize, const HttpContextPtr<T> &context, ResponsePtr response)
         {
             if (error && error != asio::error::eof)
             {
@@ -183,18 +183,23 @@ namespace granada
                 return;
             }
 
-            LOG_DEBUG_FMT("read body length: {}, ec msg:{}", read_size, error.message());
+            LOG_DEBUG_FMT("read body length: {}, ec msg:{}", readSize, error.message());
+            
+            auto &buffer = context->respBuff;
+
+            if (readSize > 0)
+            {
+                RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
+                buffer.consume(buffer.size());
+                LOG_DEBUG_FMT("RespBody: {}", body);
+                response->content.append(body);
+            }
+
             if (error == asio::error::eof)
             {
                 LOG_INFO("Read response done");
                 return finish(context, asio::error::eof, response);
             }
-
-            auto &buffer = context->respBuff;
-            RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
-            buffer.consume(buffer.size());
-            LOG_DEBUG_FMT("RespBody: {}", body);
-            response->content.append(body);
 
             // continue read
             return asio::async_read(*context->sock, buffer, boost::asio::transfer_at_least(1),
@@ -209,7 +214,7 @@ namespace granada
         {
             auto &buffer = context->respBuff;
             asio::async_read_until(*context->sock, buffer, "\r\n",
-                                   [context, response](const error_code &error, std::size_t read_size)
+                                   [context, response](const error_code &error, std::size_t readSize)
                                    {
                                        if (error && error != asio::error::eof)
                                        {
@@ -224,8 +229,8 @@ namespace granada
                                        }
 
                                        auto &buffer = context->respBuff;
-                                       RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + read_size);
-                                       buffer.consume(read_size);
+                                       RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + readSize);
+                                       buffer.consume(readSize);
                                        try
                                        {
                                            size_t chunk_size = std::stoul(body, nullptr, 16);
@@ -250,7 +255,7 @@ namespace granada
             auto &buffer = context->respBuff;
             size_t to_read_size = chunk_size + 2; // content + "\r\n"
             asio::async_read(*context->sock, buffer, asio::transfer_at_least(to_read_size),
-                             [context, chunk_size, response](const error_code &error, std::size_t read_size)
+                             [context, chunk_size, response](const error_code &error, std::size_t readSize)
                              {
                                  try
                                  {
@@ -284,12 +289,12 @@ namespace granada
         template void onResolve<http::tSock>(const boost::system::error_code &, tcp::resolver::results_type endpoints, const HttpContextPtr<http::tSock> &);
         template void onWrite<http::sSock>(const boost::system::error_code &, std::size_t bytes_transferred, const HttpContextPtr<http::sSock> &);
         template void onWrite<http::tSock>(const boost::system::error_code &, std::size_t bytes_transferred, const HttpContextPtr<http::tSock> &);
-        template void onReadStatusLine<http::sSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::sSock> &, ResponsePtr);
-        template void onReadStatusLine<http::tSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::tSock> &, ResponsePtr);
-        template void onReadHeaders<http::sSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::sSock> &, ResponsePtr);
-        template void onReadHeaders<http::tSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::tSock> &, ResponsePtr);
-        template void onReadIdentityBody<http::sSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::sSock> &, ResponsePtr);
-        template void onReadIdentityBody<http::tSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::tSock> &, ResponsePtr);
+        template void onReadStatusLine<http::sSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::sSock> &, ResponsePtr);
+        template void onReadStatusLine<http::tSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::tSock> &, ResponsePtr);
+        template void onReadHeaders<http::sSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::sSock> &, ResponsePtr);
+        template void onReadHeaders<http::tSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::tSock> &, ResponsePtr);
+        template void onReadIdentityBody<http::sSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::sSock> &, ResponsePtr);
+        template void onReadIdentityBody<http::tSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::tSock> &, ResponsePtr);
         template void readChunkSize<http::sSock>(const HttpContextPtr<http::sSock> &, ResponsePtr);
         template void readChunkSize<http::tSock>(const HttpContextPtr<http::tSock> &, ResponsePtr);
         template void readChunkBody<http::sSock>(const std::size_t chunk_size, const HttpContextPtr<http::sSock> &, ResponsePtr);
