@@ -187,7 +187,7 @@ namespace granada
             
             auto &buffer = context->respBuff;
 
-            if (readSize > 0)
+            if (readSize > 0 || buffer.size() > 0)
             {
                 RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
                 buffer.consume(buffer.size());
