@@ -87,6 +87,10 @@ void http::HttpBasicContext::timeout(uint64_t second)
                 // canceled
                 LOG_ERROR_FMT("httpctx timeout: {}", ec.message());
             }
+            else
+            {
+                LOG_ERROR_FMT("error occured {}", ec.message());
+            }
             ctx->cleanUp();
         });
 }

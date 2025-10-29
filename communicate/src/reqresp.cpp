@@ -124,6 +124,12 @@ bool granada::http::shouldReadBody(const http::ResponsePtr &response)
 {
     try
     {
+        if (response->version == HTTP_1_0)
+        {
+            // HTTP/1.0 always read body
+            return true;
+        }
+
         // check status code
         int code = std::stoi(response->statusCode);
         if ((100 <= code && code < 200) || code == 204 || code == 304)
@@ -137,6 +143,7 @@ bool granada::http::shouldReadBody(const http::ResponsePtr &response)
 
         // Content-Length
         auto it = response->headers.find(Content_Length);
+        it = it != response->headers.end() ? it : response->headers.find(granada::utils::string::toLower(Content_Length));
         if (it != response->headers.end())
         {
             size_t len = std::stoul(it->second);
@@ -144,6 +151,7 @@ bool granada::http::shouldReadBody(const http::ResponsePtr &response)
         }
 
         it = response->headers.find(Connection);
+        it = it != response->headers.end() ? it : response->headers.find(granada::utils::string::toLower(Connection));
         if (it != response->headers.end())
         {
             std::string conn = it->second;

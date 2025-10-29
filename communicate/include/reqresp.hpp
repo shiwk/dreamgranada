@@ -10,6 +10,7 @@
 
 #define HTTP "http"
 #define HTTPS "https"
+#define HTTP_1_0 "HTTP/1.0"
 #define CHUNKED "chunked"
 #define TRANSFER_ENCODING "Transfer-Encoding"
 #define Content_Length "Content-Length"
