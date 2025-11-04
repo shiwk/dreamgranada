@@ -35,6 +35,7 @@ namespace granada
             void complete(const error_code &, ResponsePtr response);
             asio::streambuf reqBuff;
             asio::streambuf respBuff;
+            std::string cid;
 
         protected:
             const io_contextPtr io_context_;

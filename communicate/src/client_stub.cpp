@@ -19,7 +19,6 @@ namespace granada
                 LOG_ERROR_FMT("Resolve error: {}", error.message());
                 return finish(context, error, nullptr);
             }
-
             for (auto &endpoint : endpoints)
             {
                 LOG_DEBUG_FMT("Endpoint: {}", endpoint.endpoint().address().to_string());
@@ -191,7 +190,7 @@ namespace granada
             {
                 RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
                 buffer.consume(buffer.size());
-                LOG_DEBUG_FMT("RespBody: {}", body);
+                // LOG_DEBUG_FMT("RespBody: {}", body);
                 response->content.append(body);
             }
 

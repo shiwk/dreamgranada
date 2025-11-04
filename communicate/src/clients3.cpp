@@ -8,7 +8,6 @@ namespace http = granada::http;
 void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &request, http::ResponseHandler &&requestCallback, http::ErrorHandler &&errorHandler)
 {
     auto https = request->https;
-    LOG_INFO_FMT("Requesting {}://{}{}", https ? HTTPS : HTTP, request->host, request->path);
     auto resolver = std::make_shared<tcp::resolver>(*io_context);
 
     if (https)

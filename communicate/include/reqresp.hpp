@@ -44,7 +44,7 @@ namespace granada
             std::string body;
             std::unordered_map<std::string, std::string> headers;
             std::unordered_map<std::string, std::string> queries;
-            int8_t timeout = 10;
+            uint8_t timeout = 10;
 
             Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent = "granada_client", const std::string &connection = "close", const std::string &body = "", const bool https = true);
             void addHeader(const std::string &, const std::string &value);

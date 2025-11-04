@@ -3,6 +3,7 @@
 #include <openssl/err.h>
 #include <encode.hpp>
 #include <util.hpp>
+#include <uuid.hpp>
 
 namespace http = granada::http;
 
@@ -58,7 +59,7 @@ void http::HttpBasicContext::prepare(const http::RequestPtr &request)
 #ifdef DEBUG_BUILD
     auto bufs = reqBuff.data();
     std::string content(asio::buffers_begin(bufs), asio::buffers_end(bufs));
-    LOG_DEBUG_FMT("Request stream:\n{}", content);
+    LOG_DEBUG_FMT("Ctx created {}://{}{}, cid: {}, stream:\n{}", request->https ? HTTPS : HTTP, request->host, request->path, cid, content);
 #endif
 
     timeout(request->timeout);
@@ -84,12 +85,13 @@ void http::HttpBasicContext::timeout(uint64_t second)
         {
             if (ec == asio::error::operation_aborted)
             {
-                // canceled
-                LOG_ERROR_FMT("httpctx timeout: {}", ec.message());
+                // canceled as timer already destroyed
+                LOG_DEBUG_FMT("timer cancled: {}, cid: {}", ec.message(), ctx->cid);
             }
             else
             {
-                LOG_ERROR_FMT("error occured {}", ec.message());
+                // timeout occured
+                LOG_ERROR_FMT("error occured {}, cid {}", ec.message(), ctx->cid);
             }
             ctx->cleanUp();
         });
@@ -124,7 +126,7 @@ void http::HttpContext<http::sSock>::cleanUp()
         LOG_WARNING_FMT("Failed to get remote endpoint: {}", e.what());
         remote_endpoint = "unknown";
     }
-    LOG_DEBUG_FMT("Starting SSL shutdown to {}", remote_endpoint);
+    LOG_DEBUG_FMT("Starting SSL shutdown to {}, cid: {}", remote_endpoint, cid);
     auto timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
     // timeout
     timer->expires_after(std::chrono::seconds(5));
@@ -158,30 +160,25 @@ void http::HttpContext<http::sSock>::cleanUp()
                 ec == boost::system::error_code(static_cast<int>(boost::system::errc::bad_file_descriptor), boost::system::generic_category()))
             {
                 LOG_WARNING("Socket already closed (bad_file_descriptor).");
-                return http::safeCloseSsl(ctx->sock);
             }
             if (ec == boost::asio::ssl::error::stream_truncated)
             {
                 LOG_INFO("Stream truncated during SSL shutdown; treating as normal close.");
-                return http::safeCloseSsl(ctx->sock);
             }
             if (errMsg.find("application data after close notify") != std::string::npos ||
                 sslErrString.find("application data after close notify") != std::string::npos)
             {
                 LOG_WARNING("Application data after close_notify detected. Treating as closed.");
-                return http::safeCloseSsl(ctx->sock);
             }
             if (errMsg.find("shutdown while in init") != std::string::npos ||
                 sslErrString.find("shutdown while in init") != std::string::npos)
             {
                 LOG_ERROR("Called SSL_shutdown while SSL in init/handshake state. Programming error: ensure handshake finished before shutdown.");
-                return http::safeCloseSsl(ctx->sock);
             }
             if (errMsg.find("uninitialized") != std::string::npos ||
                 sslErrString.find("uninitialized") != std::string::npos)
             {
                 LOG_ERROR("SSL_shutdown reported 'uninitialized'. Likely using freed/uninitialized SSL object. Fix lifecycle management.");
-                return http::safeCloseSsl(ctx->sock);
             }
 
             LOG_ERROR_FMT("SSL shutdown error: {}, OpenSSL error: {}", errMsg, sslErrString);
@@ -191,7 +188,7 @@ void http::HttpContext<http::sSock>::cleanUp()
     timer->async_wait([ctx](const boost::system::error_code &ec)
                       {
         if (!ec) {
-            LOG_DEBUG("Shutdown timed out, closing socket");
+            LOG_DEBUG_FMT("Shutdown timed out, force closing socket. cid: {}", ctx->cid);
             return http::safeCloseSsl(ctx->sock);
         } });
 }
@@ -204,7 +201,7 @@ void http::HttpContext<http::tSock>::cleanUp()
         LOG_DEBUG("Socket already closed.");
         return;
     }
-    LOG_DEBUG("Closing socket.");
+    LOG_DEBUG_FMT("Closing socket. cid: {}", cid);
     sock->shutdown(tcp::socket::shutdown_both);
     sock->close();
 }
@@ -223,6 +220,13 @@ http::HttpContext<http::sSock>::HttpContext(io_contextPtr &io_context, const htt
 
 http::HttpBasicContext::HttpBasicContext(io_contextPtr &io_context, const http::RequestPtr &request, http::ResponseHandler &&respHandler, http::ErrorHandler &&errorHandler)
     : io_context_(io_context), reqBuff(), respBuff(), respHandler(std::move(respHandler)), errorHandler(std::move(errorHandler)), timer_(std::make_shared<asio::steady_timer>(*io_context))
+    , cid(
+        #ifdef DEBUG_BUILD
+        granada::GranadaUID::instance().gen("HttpCtxCid")
+        #else
+        ""
+        #endif
+    )
 {
 }
 
@@ -236,12 +240,10 @@ void http::HttpBasicContext::complete(const error_code &error, ResponsePtr respo
     timer_->cancel();
     if (error != boost::asio::error::eof)
     {
-        LOG_ERROR("Httpctx error occured.");
+        LOG_ERROR_FMT("Httpctx error occured. cid: {}", cid);
         errorHandler(error);
-        // cleanUp();
         return;
     }
 
     respHandler(error, response);
-    // cleanUp();
 }
