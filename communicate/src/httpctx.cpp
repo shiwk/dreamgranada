@@ -88,10 +88,14 @@ void http::HttpBasicContext::timeout(uint64_t second)
                 // canceled as timer already destroyed
                 LOG_DEBUG_FMT("timer cancled: {}, cid: {}", ec.message(), ctx->cid);
             }
-            else
+            else if (!ec)
             {
                 // timeout occured
-                LOG_ERROR_FMT("error occured {}, cid {}", ec.message(), ctx->cid);
+                LOG_WARNING_FMT("timeout occured {}, cid {}", ec.message(), ctx->cid);
+            }
+            else
+            {
+                LOG_ERROR_FMT("timer error: {}, cid: {}", ec.message(), ctx->cid);
             }
             ctx->cleanUp();
         });
@@ -110,23 +114,23 @@ void http::HttpBasicContext::dumpRequest()
 template <>
 void http::HttpContext<http::sSock>::cleanUp()
 {
-    std::string remote_endpoint;
+    std::string remote = "unknown";
     try
     {
-        if (!sock->lowest_layer().is_open())
-        {
-            // already closed
-            LOG_DEBUG("Socket already closed.");
-            return;
-        }
-        remote_endpoint = sock->lowest_layer().remote_endpoint().address().to_string();
+        remote = sock->lowest_layer().remote_endpoint().address().to_string();
     }
     catch (const std::exception &e)
     {
-        LOG_WARNING_FMT("Failed to get remote endpoint: {}", e.what());
-        remote_endpoint = "unknown";
+        LOG_WARNING_FMT("Failed to get remote endpoint: {}, maybe not connected.", e.what());
     }
-    LOG_DEBUG_FMT("Starting SSL shutdown to {}, cid: {}", remote_endpoint, cid);
+
+    if (!sock->lowest_layer().is_open())
+    {
+        LOG_DEBUG("Socket already closed or not connected.");
+        return;
+    }
+
+    LOG_DEBUG_FMT("Starting SSL shutdown to {}, cid: {}", remote, cid);
     auto timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
     // timeout
     timer->expires_after(std::chrono::seconds(5));
@@ -185,12 +189,24 @@ void http::HttpContext<http::sSock>::cleanUp()
             http::safeCloseSsl(ctx->sock);
         });
 
-    timer->async_wait([ctx](const boost::system::error_code &ec)
-                      {
-        if (!ec) {
-            LOG_DEBUG_FMT("Shutdown timed out, force closing socket. cid: {}", ctx->cid);
-            return http::safeCloseSsl(ctx->sock);
-        } });
+    timer->async_wait(
+        [ctx](const boost::system::error_code &ec)
+        {
+            if (ec == asio::error::operation_aborted)
+            {
+                LOG_DEBUG_FMT("Shutdown timer cancelled: {}, cid: {}", ec.message(), ctx->cid);
+            }
+            else if (!ec) {
+                LOG_WARNING_FMT("Shutdown timed out, force closing socket. cid: {}", ctx->cid);
+                return http::safeCloseSsl(ctx->sock);
+            }
+            else
+            {
+                LOG_ERROR_FMT("Shutdown timer error: {}, cid: {}", ec.message(), ctx->cid);
+                return http::safeCloseSsl(ctx->sock);
+            }
+        }
+    );
 }
 
 template <>

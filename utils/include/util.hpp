@@ -19,14 +19,14 @@ namespace granada
             {
                 std::stringstream ss;
                 ss << "0X" << std::setw(4) << std::setfill('0') << std::hex << t;
-                return std::move(ss.str());
+                return ss.str();
             }
             
             template <class T>
             inline std::string dumpB(T t)
             {
                 std::string binaryString = std::bitset<64>(t).to_string();
-                return std::move("0B" + binaryString);
+                return "0B" + binaryString;
             }
         }
 

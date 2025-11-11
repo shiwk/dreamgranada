@@ -31,7 +31,7 @@ uuid GranadaUID::gen(const std::string &prefix, const uint64_t ts)
     ss << std::setw(8) << std::setfill('0') << std::hex << timestamp
        << std::setw(4) << std::setfill('0') << std::hex << (currentCounter & 0xFFFF);
 
-    return std::move(ss.str());
+    return ss.str();
 }
 
 GranadaUID &GranadaUID::instance()
