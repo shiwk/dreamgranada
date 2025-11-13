@@ -7,3 +7,4 @@ enable_testing()
 
 add_subdirectory(event)
 add_subdirectory(http)
+add_subdirectory(util)

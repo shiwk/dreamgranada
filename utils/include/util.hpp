@@ -55,8 +55,12 @@ namespace granada
         {
             extern time_t dateToTimestamp(const std::string &dateStr, const std::string &dateFmt);
             extern const std::string timestampToDate(const std::time_t &, const std::string &dateFmt);
-            extern time_t getLocalTime();
+            extern time_t getNowTs();
+            extern std::tm getGmtNow();
+            extern std::tm getGmtTime(std::time_t);
             extern uint64_t msUntilNext(int target_hour, int target_minute = 0, int target_second = 0);
+            extern uint64_t lastWeekDayNotLaterThan(uint64_t ts, int target_weekday, int target_hour=0, int target_minute = 0, int target_second = 0);
+            extern uint64_t lastMonthDayNotLaterThan(uint64_t ts, int target_monthday, int target_hour=0, int target_minute = 0, int target_second = 0);
         };
     } // namespace utils
 } // namespace granada
