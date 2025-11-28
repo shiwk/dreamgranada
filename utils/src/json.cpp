@@ -281,4 +281,20 @@ namespace granada
         toJson(json);
         json->dump(out);
     }
+
+    void JsonValizable::toJson(JsonValuePtr) const
+    {
+    }
+
+    void JsonValizable::fromJson(JsonValuePtr)
+    {
+    }
+
+    void JsonValizable::fromJson(JsonMemberPtr)
+    {
+    }
+    
+    void JsonValizable::fromJson(JsonPtr)
+    {
+    }
 }
