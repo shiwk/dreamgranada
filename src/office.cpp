@@ -12,8 +12,8 @@ namespace granada
 {
     OfficeCenter::OfficeCenter(events::BusPtr bus)
     {
-        bus->setBusStop([this](const events::EventPtr &event)
-                        { onEvent(event); });
+        // bus->setBusStop([this](const events::EventPtr &event)
+        //                 { onEvent(event); });
     }
 
     void OfficeCenter::onEvent(events::EventPtr event)
