@@ -183,15 +183,23 @@ namespace granada
             }
 
             LOG_DEBUG_FMT("read body length: {}, ec msg:{}", readSize, error.message());
-            
+
             auto &buffer = context->respBuff;
 
             if (readSize > 0 || buffer.size() > 0)
             {
-                RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + buffer.size());
+                auto bufs = buffer.data();
+                auto it = buffer_sequence_begin(bufs);
+                auto end = buffer_sequence_end(bufs);
+
+                for (; it != end; ++it)
+                {
+                    const auto &buf = *it;
+                    const char *p = static_cast<const char *>(buf.data());
+                    std::size_t n = buf.size();
+                    response->content->append(p, n);
+                }
                 buffer.consume(buffer.size());
-                // LOG_DEBUG_FMT("RespBody: {}", body);
-                response->content.append(body);
             }
 
             if (error == asio::error::eof)
@@ -267,9 +275,30 @@ namespace granada
                                      RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + chunk_size);
                                      LOG_DEBUG_FMT("read chunk size: {}", body.size());
 
-                                     buffer.consume(chunk_size + 2);
+                                     std::size_t toRead = chunk_size;
 
-                                     response->content.append(body);
+                                     auto bufs = buffer.data();
+                                     auto it = buffer_sequence_begin(bufs);
+                                     auto end = buffer_sequence_end(bufs);
+
+                                     for (; it != end; ++it)
+                                     {
+                                         const auto &buf = *it;
+                                         if (toRead == 0)
+                                         {
+                                             break;
+                                         }
+                                         const char *p = static_cast<const char *>(buf.data());
+                                         std::size_t n = buf.size();
+                                         if (n > toRead)
+                                         {
+                                             n = toRead;
+                                         }
+                                         toRead -= n;
+                                         response->content->append(p, n);
+                                     }
+
+                                     buffer.consume(chunk_size + 2);
                                      readChunkSize(context, response);
                                  }
                                  catch (const std::exception &e)

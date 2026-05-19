@@ -10,8 +10,12 @@ namespace granada
     using JString = const char *;
     using JKey = const char *;
     class JsonValue;
-    class JsonValizable;
-    MAKE_SHARED_PTR(JsonValizable)
+    class JsonElementSerializable;
+    MAKE_SHARED_PTR(JsonElementSerializable)
+    class JsonSerializable;
+    MAKE_SHARED_PTR(JsonSerializable)
+    class JsonDeserializable;
+    MAKE_SHARED_PTR(JsonDeserializable)
 
     class JsonDoc
     {
@@ -73,7 +77,7 @@ namespace granada
             return memberList;
         }
 
-        void addElement(const JsonValizablePtr);
+        void addElement(const JsonElementSerializablePtr);
 
         std::shared_ptr<JsonValue> operator[](const std::string &);
         std::shared_ptr<JsonValue> operator[](size_t);
@@ -117,30 +121,38 @@ namespace granada
 
         template <class T>
         void addMember(JKey key, const T &value);
-        void addObjMember(JKey key, const JsonValizablePtr);
-        void addArrayMember(JKey key, const JsonValizablePtr);
+        void addObjMember(JKey key, const JsonElementSerializablePtr);
+        void addArrayMember(JKey key, const JsonElementSerializablePtr);
 
     private:
         void parse(const std::string &str);
     };
 
     MAKE_SHARED_PTR(Json)
-    class JsonValizable
-    {
-    public:
-        ~JsonValizable() = default;
-        virtual void toJson(JsonValuePtr) const;
-        virtual void fromJson(JsonValuePtr);
-        virtual void fromJson(JsonMemberPtr);
-        virtual void fromJson(JsonPtr);
-    };
 
-    class JsonDocizable
+
+    class JsonSerializable
     {
     public:
-        ~JsonDocizable() = default;
+        virtual ~JsonSerializable() = default;
         virtual void toJson(JsonPtr) const = 0;
         void dump(std::string &out) const;
+    };
+
+    class JsonElementSerializable
+    {
+    public:
+        virtual ~JsonElementSerializable() = default;
+        virtual void toJson(JsonValuePtr) const = 0;
+    };
+
+    class JsonDeserializable
+    {
+    public:
+        virtual ~JsonDeserializable() = default;
+        virtual void fromJson(JsonValuePtr) = 0;
+        virtual void fromJson(JsonMemberPtr) = 0;
+        virtual void fromJson(JsonPtr) = 0;
     };
 
     extern JsonPtr loadJson(const std::string &);

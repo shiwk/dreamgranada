@@ -83,7 +83,7 @@ namespace granada
                        alloc);
     }
 
-    void Json::addObjMember(JKey key, const JsonValizablePtr obj)
+    void Json::addObjMember(JKey key, const JsonElementSerializablePtr obj)
     {
         auto alloc = GetAllocator();
         rapidjson::Value value(rapidjson::kObjectType);
@@ -94,7 +94,7 @@ namespace granada
                        alloc);
     }
 
-    void Json::addArrayMember(JKey key, const JsonValizablePtr obj)
+    void Json::addArrayMember(JKey key, const JsonElementSerializablePtr obj)
     {
         auto alloc = GetAllocator();
         rapidjson::Value value(rapidjson::kArrayType);
@@ -250,7 +250,7 @@ namespace granada
         return valuePtr;
     }
 
-    void JsonValue::addElement(const JsonValizablePtr objPtr)
+    void JsonValue::addElement(const JsonElementSerializablePtr objPtr)
     {
         auto alloc = GetAllocator();
         rapidjson::Value value(rapidjson::kObjectType);
@@ -274,27 +274,10 @@ namespace granada
         return doc->GetAllocator();
     }
 
-    void JsonDocizable::dump(std::string &out) const
+    void JsonSerializable::dump(std::string &out) const
     {
-        // auto json = granada::Json(sharedT());
         auto json = std::make_shared<Json>();
         toJson(json);
         json->dump(out);
-    }
-
-    void JsonValizable::toJson(JsonValuePtr) const
-    {
-    }
-
-    void JsonValizable::fromJson(JsonValuePtr)
-    {
-    }
-
-    void JsonValizable::fromJson(JsonMemberPtr)
-    {
-    }
-    
-    void JsonValizable::fromJson(JsonPtr)
-    {
     }
 }

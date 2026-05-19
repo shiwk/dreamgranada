@@ -18,6 +18,13 @@ namespace granada
         using delay_t = uint32_t;
         using active_t = uint8_t;
         using bitcout_t = uint8_t;
+        
+        template <class CB>
+        struct EventCallback
+        {
+            EventCallback(CB &&callback) : onComplete(std::forward<CB>(callback)) {}
+            CB onComplete;
+        };
 
         struct EventPayload
         {

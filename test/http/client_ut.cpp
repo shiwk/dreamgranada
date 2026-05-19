@@ -8,11 +8,11 @@ namespace ghttp = granada::http;
 
 struct GResponse
 {
-    GResponse(const boost::system::error_code &ec, const std::string &statusCode, const std::string &content)
+    GResponse(const boost::system::error_code &ec, const std::string &statusCode, std::shared_ptr<std::string> content)
         : ec(ec), statusCode(statusCode), content(content) {}
     boost::system::error_code ec;
     std::string statusCode;
-    std::string content;
+    std::shared_ptr<std::string> content;
 };
 
 
@@ -39,7 +39,7 @@ TEST(ClientsTests, Test_Get_PLAIN_HTTP)
                                     },
                                         [&prom, &guard](const boost::system::error_code &ec)
                                      {
-                                         prom.set_value({ec, "", ""});
+                                         prom.set_value({ec, "", nullptr});
                                         guard.reset(); });
 
     std::future<void> f = std::async(std::launch::async, [&]
@@ -47,7 +47,7 @@ TEST(ClientsTests, Test_Get_PLAIN_HTTP)
     auto futStatus = fut.wait_for(std::chrono::seconds(10));
     assert(futStatus == std::future_status::ready);
     auto gresponse = fut.get();
-    EXPECT_NE("", gresponse.content);
-    LOG_DEBUG_FMT("Response content: {}", gresponse.content);
+    EXPECT_NE(nullptr, gresponse.content);
+    LOG_DEBUG_FMT("Response content: {}", *gresponse.content);
     EXPECT_EQ("200", gresponse.statusCode);
 }

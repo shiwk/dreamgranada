@@ -62,6 +62,7 @@ namespace granada
         using ErrorHandler = std::function<void(const boost::system::error_code &)>;
         using RespHeaders = std::unordered_map<std::string, std::string>;
         using RespBody = std::string;
+        MAKE_SHARED_PTR(RespBody);
 
         struct ResponseStatus
         {
@@ -74,9 +75,9 @@ namespace granada
 
         struct Response : ResponseStatus
         {
-            Response() : ResponseStatus() {}
+            Response() : ResponseStatus(), content(std::make_shared<std::string>()) {}
             RespHeaders headers;
-            RespBody content;
+            RespBodyPtr content;
             bool chunked()
             {
                 return headers.find(TRANSFER_ENCODING) != headers.end() && headers[TRANSFER_ENCODING] == CHUNKED;

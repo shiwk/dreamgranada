@@ -6,8 +6,19 @@
 granada::http::HttpStatus granada::http::status::OK = "200";
 namespace http = granada::http;
 
+static std::string stripUrlProtocol(const std::string &url)
+{
+    static const std::string HTTP_PREFIX = "http://";
+    static const std::string HTTPS_PREFIX = "https://";
+    if (url.find(HTTPS_PREFIX) == 0)
+        return url.substr(HTTPS_PREFIX.size());
+    if (url.find(HTTP_PREFIX) == 0)
+        return url.substr(HTTP_PREFIX.size());
+    return url;
+}
+
 granada::http::Request::Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent, const std::string &connection, const std::string &body, const bool https)
-    : method(method), path(path), host(host), user_agent(user_agent), body(body), connection(connection), https(https)
+    : method(method), path(path), host(stripUrlProtocol(host)), user_agent(user_agent), body(body), connection(connection), https(https)
 {
     headers[Connection] = connection;
     headers[User_Agent] = user_agent;
