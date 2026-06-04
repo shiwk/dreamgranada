@@ -78,6 +78,8 @@ namespace granada
         }
 
         void addElement(const JsonElementSerializablePtr);
+        void addObjMember(JKey key, const JsonElementSerializablePtr);
+        void addArrayMember(JKey key, const JsonElementSerializablePtr);
 
         std::shared_ptr<JsonValue> operator[](const std::string &);
         std::shared_ptr<JsonValue> operator[](size_t);

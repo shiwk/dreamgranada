@@ -259,6 +259,26 @@ namespace granada
         value_.PushBack(value, alloc);
     }
 
+    void JsonValue::addObjMember(JKey key, const JsonElementSerializablePtr obj)
+    {
+        auto alloc = GetAllocator();
+        rapidjson::Value nested(rapidjson::kObjectType);
+        auto jsonValue = std::make_shared<JsonValue>(doc, nested);
+        obj->toJson(jsonValue);
+        value_.AddMember(rapidjson::Value(key, alloc).Move(),
+                         rapidjson::Value(nested, alloc).Move(),
+                         alloc);
+    }
+
+    void JsonValue::addArrayMember(JKey key, const JsonElementSerializablePtr obj)
+    {
+        auto alloc = GetAllocator();
+        rapidjson::Value nested(rapidjson::kArrayType);
+        auto jsonValue = std::make_shared<JsonValue>(doc, nested);
+        obj->toJson(jsonValue);
+        value_.AddMember(rapidjson::Value(key, alloc).Move(), nested, alloc);
+    }
+
     std::shared_ptr<JsonValue> JsonValue::operator[](const std::string &field)
     {
         return getObj(field);
