@@ -238,7 +238,7 @@ namespace granada
         try
         {
             auto json = loadJson(value);
-            if (json != nullptr && !json->hasError())
+            if (json != nullptr && !json->hasError() && json->isObj())
             {
                 return ConfigValue(json->get("value"));
             }
