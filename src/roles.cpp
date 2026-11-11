@@ -8,14 +8,22 @@ namespace granada
 
     void roles::Poster::post(events::EventPtr event)
     {
-        bus_.lock()->board(event);
+        // A delayed handler can outlive its bus (e.g. at shutdown). Dropping
+        // the event is safer than dereferencing an expired weak_ptr.
+        auto bus = bus_.lock();
+        if (!bus)
+        {
+            LOG_DEBUG_FMT("Dropping event {}: bus already destroyed", event->name());
+            return;
+        }
+        bus->board(event);
     }
 
     void roles::Poster::asyncRequest3(http::RequestPtr &request, http::ResponseHandler &&respHandler, http::ErrorHandler &&errorHandler)
     {
         auto &context = events::Bus::getBusEngine();
         http::asyncRequest(context, request, std::move(respHandler), std::move(errorHandler));
-        LOG_INFO("Request sent.");
+        LOG_DEBUG("Request sent.");
     }
 
     void roles::Subscriber::logIn()

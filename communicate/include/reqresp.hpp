@@ -45,6 +45,9 @@ namespace granada
             std::unordered_map<std::string, std::string> headers;
             std::unordered_map<std::string, std::string> queries;
             uint8_t timeout = 10;
+            // 0 means the scheme default (80/443). A non-zero value allows
+            // tests and private deployments to target another port.
+            uint16_t port = 0;
 
             Request(const Method &method, const std::string &host, const std::string &path, const std::string &user_agent = "granada_client", const std::string &connection = "close", const std::string &body = "", const bool https = true);
             void addHeader(const std::string &, const std::string &value);

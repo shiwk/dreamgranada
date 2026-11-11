@@ -26,6 +26,29 @@ ssl::context &http::getSSLCtx()
     return ctx;
 }
 
+namespace
+{
+    // Never log a bot token. Telegram puts it in the path as /bot<token>/<api>.
+    std::string redactPath(const std::string &path)
+    {
+        static const std::string marker = "/bot";
+        const std::size_t markerPos = path.find(marker);
+        if (markerPos == std::string::npos)
+        {
+            return path;
+        }
+
+        const std::size_t secretBegin = markerPos + marker.size();
+        const std::size_t secretEnd = path.find('/', secretBegin);
+        if (secretEnd == std::string::npos || secretEnd == secretBegin)
+        {
+            return path;
+        }
+
+        return path.substr(0, secretBegin) + "***" + path.substr(secretEnd);
+    }
+}
+
 void http::HttpBasicContext::prepare(const http::RequestPtr &request)
 {
     std::ostream reqStream(&reqBuff);
@@ -34,7 +57,12 @@ void http::HttpBasicContext::prepare(const http::RequestPtr &request)
     http::writeQueryStream(request, reqStream);
 
     reqStream << " HTTP/1.1\r\n";
-    reqStream << "Host: " << request->host << "\r\n";
+    reqStream << "Host: " << request->host;
+    if (request->port != 0)
+    {
+        reqStream << ":" << request->port;
+    }
+    reqStream << "\r\n";
 
     // write headers
     for (auto it = request->headers.begin(); it != request->headers.end(); ++it)
@@ -59,7 +87,7 @@ void http::HttpBasicContext::prepare(const http::RequestPtr &request)
 #ifdef DEBUG_BUILD
     // Never log the raw request stream: it contains bot tokens in the path,
     // API keys in the query string and Authorization headers.
-    LOG_DEBUG_FMT("Ctx created {}://{}{}, cid: {}", request->https ? HTTPS : HTTP, request->host, request->path, cid);
+    LOG_DEBUG_FMT("Ctx created {}://{}{}, cid: {}", request->https ? HTTPS : HTTP, request->host, redactPath(request->path), cid);
 #endif
 
     timeout(request->timeout);
@@ -85,30 +113,25 @@ void http::HttpBasicContext::timeout(uint64_t second)
         {
             if (ec == asio::error::operation_aborted)
             {
-                // canceled as timer already destroyed
+                // The response completed first and cancelled the timer.
                 LOG_DEBUG_FMT("timer cancled: {}, cid: {}", ec.message(), ctx->cid);
+                return;
             }
-            else if (!ec)
+
+            if (!ec)
             {
-                // timeout occured
-                LOG_WARNING_FMT("timeout occured {}, cid {}", ec.message(), ctx->cid);
+                LOG_WARNING_FMT("timeout occured, cid: {}", ctx->cid);
+                ctx->complete(asio::error::timed_out, nullptr);
             }
             else
             {
                 LOG_ERROR_FMT("timer error: {}, cid: {}", ec.message(), ctx->cid);
+                ctx->complete(ec, nullptr);
             }
+            // Close the socket so the pending read is aborted; complete() is
+            // idempotent, so the resulting handler cannot notify twice.
             ctx->cleanUp();
         });
-}
-
-void http::HttpBasicContext::dumpRequest()
-{
-    std::istream is(&reqBuff);
-    std::string data((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
-    LOG_DEBUG_FMT("Request stream:\n{}", data);
-    reqBuff.consume(reqBuff.size());
-    is.clear();
-    is.seekg(0);
 }
 
 template <>
@@ -253,10 +276,17 @@ http::HttpBasicContext::~HttpBasicContext()
 
 void http::HttpBasicContext::complete(const error_code &error, ResponsePtr response)
 {
+    if (completed_)
+    {
+        LOG_DEBUG_FMT("Httpctx already completed, ignoring {} (cid: {})", error.message(), cid);
+        return;
+    }
+    completed_ = true;
     timer_->cancel();
+
     if (error != boost::asio::error::eof)
     {
-        LOG_ERROR_FMT("Httpctx error occured. cid: {}", cid);
+        LOG_ERROR_FMT("Httpctx error occured: {} (cid: {})", error.message(), cid);
         errorHandler(error);
         return;
     }

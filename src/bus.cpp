@@ -12,7 +12,7 @@ namespace granada
                               {
                                   if (!error)
                                   {
-                                    LOG_INFO("BUS HB ONCE");
+                                    LOG_DEBUG("BUS HB ONCE");
                                   }
                                   else
                                   {

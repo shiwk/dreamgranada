@@ -41,11 +41,13 @@ namespace granada
             const io_contextPtr io_context_;
             ResponseHandler respHandler;
             ErrorHandler errorHandler;
-            void dumpRequest();
             virtual void cleanUp() = 0;
 
         private:
             std::shared_ptr<asio::steady_timer> timer_;
+            // Completion may be reached by a socket handler and the timeout
+            // timer. Exactly one of them is allowed to notify the caller.
+            bool completed_ = false;
         };
 
         MAKE_SHARED_PTR(HttpBasicContext);

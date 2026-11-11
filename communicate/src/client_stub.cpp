@@ -160,7 +160,7 @@ namespace granada
 
             if (response->chunked())
             {
-                readChunkSize(context, response);
+                readChunkedBody(context, response);
             }
             else
             {
@@ -217,95 +217,93 @@ namespace granada
         }
 
         template <class T>
-        void readChunkSize(const HttpContextPtr<T> &context, ResponsePtr response)
+        void drainChunks(const HttpContextPtr<T> &context, ResponsePtr response, bool streamEnded);
+
+        template <class T>
+        void readMoreChunkData(const HttpContextPtr<T> &context, ResponsePtr response)
         {
             auto &buffer = context->respBuff;
-            asio::async_read_until(*context->sock, buffer, "\r\n",
-                                   [context, response](const error_code &error, std::size_t readSize)
-                                   {
-                                       if (error && error != asio::error::eof)
-                                       {
-                                           LOG_ERROR_FMT("Read body error: {}", error.message());
-                                           return finish(context, error, nullptr);
-                                       }
+            asio::async_read(*context->sock, buffer, asio::transfer_at_least(1),
+                             [context, response](const error_code &error, std::size_t)
+                             {
+                                 if (error == asio::error::eof)
+                                 {
+                                     // The peer closed the stream. Decode whatever is
+                                     // already buffered before finishing: the final
+                                     // chunks may have arrived together with the FIN.
+                                     return drainChunks(context, response, true);
+                                 }
+                                 if (error)
+                                 {
+                                     LOG_ERROR_FMT("Read body error: {}", error.message());
+                                     return finish(context, error, nullptr);
+                                 }
+                                 drainChunks(context, response, false);
+                             });
+        }
 
-                                       if (error == asio::error::eof)
-                                       {
-                                           LOG_INFO("Read chunk to end.");
-                                           return finish(context, asio::error::eof, response);
-                                       }
+        // Decodes every complete chunk currently buffered. Reads more data only
+        // when a chunk is incomplete and the stream is still open; once the
+        // stream has ended, buffered data is decoded before completing.
+        template <class T>
+        void drainChunks(const HttpContextPtr<T> &context, ResponsePtr response, bool streamEnded)
+        {
+            auto &buffer = context->respBuff;
+            for (;;)
+            {
+                const std::string data(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_end(buffer.data()));
 
-                                       auto &buffer = context->respBuff;
-                                       RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + readSize);
-                                       buffer.consume(readSize);
-                                       try
-                                       {
-                                           size_t chunk_size = std::stoul(body, nullptr, 16);
-                                           if (chunk_size == 0)
-                                           {
-                                               LOG_DEBUG_FMT("To read chunk size: {}", chunk_size);
-                                               //    LOG_INFO("Read chunk to end.");
-                                               return finish(context, asio::error::eof, response);
-                                           }
-                                           readChunkBody(chunk_size, context, response);
-                                       }
-                                       catch (const std::exception &e)
-                                       {
-                                           LOG_ERROR_FMT("Caught exception: {}, {}", e.what(), body);
-                                       }
-                                   });
+                const std::size_t lineEnd = data.find("\r\n");
+                if (lineEnd == std::string::npos)
+                {
+                    if (streamEnded)
+                    {
+                        LOG_INFO("Read chunk to end.");
+                        return finish(context, asio::error::eof, response);
+                    }
+                    return readMoreChunkData(context, response);
+                }
+
+                std::size_t chunkSize = 0;
+                try
+                {
+                    // Trailing chunk extensions after ';' are ignored by stoul.
+                    chunkSize = std::stoul(data.substr(0, lineEnd), nullptr, 16);
+                }
+                catch (const std::exception &e)
+                {
+                    // A malformed chunk header leaves no pending read, so
+                    // without completing here the request would hang.
+                    LOG_ERROR_FMT("Invalid chunk size: {}, body: {}", e.what(), data.substr(0, lineEnd));
+                    return finish(context, asio::error::invalid_argument, nullptr);
+                }
+
+                if (chunkSize == 0)
+                {
+                    LOG_DEBUG("Read chunk to end.");
+                    return finish(context, asio::error::eof, response);
+                }
+
+                const std::size_t chunkTotal = lineEnd + 2 + chunkSize + 2; // size line + content + CRLF
+                if (data.size() < chunkTotal)
+                {
+                    if (streamEnded)
+                    {
+                        LOG_ERROR_FMT("Truncated chunk: expected {} bytes, have {}", chunkTotal, data.size());
+                        return finish(context, asio::error::eof, response);
+                    }
+                    return readMoreChunkData(context, response);
+                }
+
+                response->content->append(data.data() + lineEnd + 2, chunkSize);
+                buffer.consume(chunkTotal);
+            }
         }
 
         template <class T>
-        void readChunkBody(const std::size_t chunk_size, const HttpContextPtr<T> &context, ResponsePtr response)
+        void readChunkedBody(const HttpContextPtr<T> &context, ResponsePtr response)
         {
-            auto &buffer = context->respBuff;
-            size_t to_read_size = chunk_size + 2; // content + "\r\n"
-            asio::async_read(*context->sock, buffer, asio::transfer_at_least(to_read_size),
-                             [context, chunk_size, response](const error_code &error, std::size_t readSize)
-                             {
-                                 try
-                                 {
-                                     if (error && error != asio::error::eof)
-                                     {
-                                         LOG_ERROR_FMT("Read body error: {}", error.message());
-                                         return finish(context, error, nullptr);
-                                     }
-                                     auto &buffer = context->respBuff;
-                                     RespBody body(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_begin(buffer.data()) + chunk_size);
-                                     LOG_DEBUG_FMT("read chunk size: {}", body.size());
-
-                                     std::size_t toRead = chunk_size;
-
-                                     auto bufs = buffer.data();
-                                     auto it = buffer_sequence_begin(bufs);
-                                     auto end = buffer_sequence_end(bufs);
-
-                                     for (; it != end; ++it)
-                                     {
-                                         const auto &buf = *it;
-                                         if (toRead == 0)
-                                         {
-                                             break;
-                                         }
-                                         const char *p = static_cast<const char *>(buf.data());
-                                         std::size_t n = buf.size();
-                                         if (n > toRead)
-                                         {
-                                             n = toRead;
-                                         }
-                                         toRead -= n;
-                                         response->content->append(p, n);
-                                     }
-
-                                     buffer.consume(chunk_size + 2);
-                                     readChunkSize(context, response);
-                                 }
-                                 catch (const std::exception &e)
-                                 {
-                                     LOG_ERROR_FMT("Caught exception: {}", e.what());
-                                 }
-                             });
+            drainChunks(context, response, false);
         }
 
         void finish(HttpBasicContextPtr context, const error_code &error, ResponsePtr response)
@@ -323,9 +321,7 @@ namespace granada
         template void onReadHeaders<http::tSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::tSock> &, ResponsePtr);
         template void onReadIdentityBody<http::sSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::sSock> &, ResponsePtr);
         template void onReadIdentityBody<http::tSock>(const boost::system::error_code &, const std::size_t readSize, const HttpContextPtr<http::tSock> &, ResponsePtr);
-        template void readChunkSize<http::sSock>(const HttpContextPtr<http::sSock> &, ResponsePtr);
-        template void readChunkSize<http::tSock>(const HttpContextPtr<http::tSock> &, ResponsePtr);
-        template void readChunkBody<http::sSock>(const std::size_t chunk_size, const HttpContextPtr<http::sSock> &, ResponsePtr);
-        template void readChunkBody<http::tSock>(const std::size_t chunk_size, const HttpContextPtr<http::tSock> &, ResponsePtr);
+        template void readChunkedBody<http::sSock>(const HttpContextPtr<http::sSock> &, ResponsePtr);
+        template void readChunkedBody<http::tSock>(const HttpContextPtr<http::tSock> &, ResponsePtr);
     };
 }

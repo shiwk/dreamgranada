@@ -50,9 +50,14 @@ namespace granada
                 }
                 catch (const std::exception &e)
                 {
+                    // One faulty role must not take the whole switchboard
+                    // down: log the failure and keep dispatching.
                     LOG_ERROR_FMT("Error occurred while processing event {}: {}", event->name(), e.what());
                     LOG_DEBUG(boost::stacktrace::stacktrace());
-                    throw;
+                }
+                catch (...)
+                {
+                    LOG_ERROR_FMT("Unknown error occurred while processing event {}", event->name());
                 }
             }
         }

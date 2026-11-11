@@ -42,14 +42,9 @@ namespace granada
         extern template void onReadIdentityBody<http::tSock>(const boost::system::error_code &, const std::size_t read_size, const HttpContextPtr<http::tSock> &, ResponsePtr);
 
         template <class T>
-        extern void readChunkSize(const HttpContextPtr<T> &, ResponsePtr);
-        extern template void readChunkSize<http::sSock>(const HttpContextPtr<http::sSock> &, ResponsePtr);
-        extern template void readChunkSize<http::tSock>(const HttpContextPtr<http::tSock> &, ResponsePtr);
-
-        template <class T>
-        extern void readChunkBody(const std::size_t chunk_size, const HttpContextPtr<T> &, ResponsePtr);
-        extern template void readChunkBody<http::sSock>(const std::size_t chunk_size, const HttpContextPtr<http::sSock> &, ResponsePtr);
-        extern template void readChunkBody<http::tSock>(const std::size_t chunk_size, const HttpContextPtr<http::tSock> &, ResponsePtr);
+        extern void readChunkedBody(const HttpContextPtr<T> &, ResponsePtr);
+        extern template void readChunkedBody<http::sSock>(const HttpContextPtr<http::sSock> &, ResponsePtr);
+        extern template void readChunkedBody<http::tSock>(const HttpContextPtr<http::tSock> &, ResponsePtr);
 
         extern void finish(HttpBasicContextPtr context, const boost::system::error_code &, ResponsePtr);
     }

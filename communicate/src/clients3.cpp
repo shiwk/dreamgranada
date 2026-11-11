@@ -10,6 +10,7 @@ void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &reque
 {
     auto https = request->https;
     auto resolver = std::make_shared<tcp::resolver>(*io_context);
+    const std::string service = request->port != 0 ? std::to_string(request->port) : (https ? HTTPS : HTTP);
 
     if (https)
     {
@@ -23,14 +24,14 @@ void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &reque
         // Without this the client accepts any certificate (MITM).
         context->sock->set_verify_mode(ssl::verify_peer);
         context->sock->set_verify_callback(asio::ssl::host_name_verification(request->host));
-        resolver->async_resolve(request->host, HTTPS, [context, resolver](const error_code &err, tcp::resolver::results_type endpoints)
+        resolver->async_resolve(request->host, service, [context, resolver](const error_code &err, tcp::resolver::results_type endpoints)
                                 { http::onResolve(err, endpoints, context); });
     }
     else
     {
         auto context = http::createContext<http::tSock>(io_context, request, std::move(requestCallback), std::move(errorHandler));
         context->prepare(request);
-        resolver->async_resolve(request->host, HTTP, [context, resolver](const error_code &err, tcp::resolver::results_type endpoints)
+        resolver->async_resolve(request->host, service, [context, resolver](const error_code &err, tcp::resolver::results_type endpoints)
                                 { http::onResolve(err, endpoints, context); });
     }
 }
