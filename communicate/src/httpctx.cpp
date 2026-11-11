@@ -57,9 +57,9 @@ void http::HttpBasicContext::prepare(const http::RequestPtr &request)
     }
 
 #ifdef DEBUG_BUILD
-    auto bufs = reqBuff.data();
-    std::string content(asio::buffers_begin(bufs), asio::buffers_end(bufs));
-    LOG_DEBUG_FMT("Ctx created {}://{}{}, cid: {}, stream:\n{}", request->https ? HTTPS : HTTP, request->host, request->path, cid, content);
+    // Never log the raw request stream: it contains bot tokens in the path,
+    // API keys in the query string and Authorization headers.
+    LOG_DEBUG_FMT("Ctx created {}://{}{}, cid: {}", request->https ? HTTPS : HTTP, request->host, request->path, cid);
 #endif
 
     timeout(request->timeout);

@@ -1,6 +1,7 @@
 #include "clients3.hpp"
 #include "client_stub.hpp"
 #include "logger.hpp"
+#include <boost/asio/ssl/host_name_verification.hpp>
 
 using namespace boost;
 namespace http = granada::http;
@@ -18,6 +19,10 @@ void http::asyncRequest(http::io_contextPtr &io_context, http::RequestPtr &reque
         {
             LOG_ERROR("Failed to set SNI hostname.");
         }
+        // Verify the peer certificate *and* that it matches the host name.
+        // Without this the client accepts any certificate (MITM).
+        context->sock->set_verify_mode(ssl::verify_peer);
+        context->sock->set_verify_callback(asio::ssl::host_name_verification(request->host));
         resolver->async_resolve(request->host, HTTPS, [context, resolver](const error_code &err, tcp::resolver::results_type endpoints)
                                 { http::onResolve(err, endpoints, context); });
     }
